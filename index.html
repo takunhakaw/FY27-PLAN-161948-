@@ -556,6 +556,7 @@ function budgetCalc(b){
   var h=sum(kids('carryovers',b.projectId).filter(function(c){return c.budgetId===b.id&&isActive(c)}),'amount');
   return{spent:s,held:h,left:(Number(b.total)||0)-s-h};
 }
+function heldByMonth(pid){var m={};kids('carryovers',pid).filter(isActive).forEach(function(c){var b=S.budgets.get(c.budgetId),k=c.fromMonth||(b&&b.month)||'';m[k]=(m[k]||0)+(Number(c.amount)||0)});return m}
 function reminder(c){
   if(!c.next)return{t:'尚無後續排定活動',today:false};
   var td=today(),full=c.next.date.replace(/-/g,'/');
@@ -668,7 +669,8 @@ var ENT={
   before:function(v){var b=S.budgets.get(v.budgetId);if(v.useMonth&&b&&v.useMonth===b.month)v.useMonth='';if(v.useMonth&&b&&!v.moveNote)v.moveNote=b.month+'預算保留,改列'+v.useMonth+'使用';if(!v.useMonth&&v.moveNote&&/預算保留,改列/.test(v.moveNote))v.moveNote='';return v},
   validate:function(v,old,pid){if(old&&old.src==='import')return;var c=calc(pid);if(v.amount>c.avail+(old?old.amount:0))return'金額超過方案可用餘額 $'+money(c.avail+(old?old.amount:0))+'。'}},
  carryover:{col:'carryovers',label:'經費保留/展延單',fields:function(pid){return[
-  {k:'fromMonth',l:'保留所屬月份',t:'select',opts:MONTHS,req:1,help:'這筆經費是哪個月份的計畫書經費剩餘、申請保留的'},
+  {k:'budgetId',l:'保留的預算項目(選填)',t:'select',opts:[{v:'',l:'(不指定:該月計畫書經費整體剩餘)'}].concat(budgetOpts(pid)),help:'選了項目,這筆保留會顯示在「預算」頁該項目的「保留展延」欄並扣抵該項目餘額,保留所屬月份自動帶入該項目的月份。'},
+  {k:'fromMonth',l:'保留所屬月份',t:'select',opts:[{v:'',l:'(選了預算項目則自動帶入)'}].concat(MONTHS.map(function(m){return{v:m,l:m}})),help:'這筆經費是哪個月份的計畫書經費剩餘、申請保留的'},
   {k:'toMonth',l:'延至月份',t:'select',opts:MONTHS,req:1,help:'申請展延使用的月份,必須晚於所屬月份'},
   {k:'amount',l:'保留/回存金額(元)',t:'money',req:1},
   {k:'reason',l:'原因說明',t:'long',req:1},
@@ -677,8 +679,13 @@ var ENT={
   init:function(){var m=(new Date().getMonth()+1)+'月';return{status:'保留中',fromMonth:MONTHS.indexOf(m)>=0?m:MONTHS[0]}},
   before:function(v){if(v.status==='已解除'&&!v.resolvedAt)v.resolvedAt=Date.now();if(v.status==='保留中')v.resolvedAt=null;return v},
   validate:function(v,old,pid){
+    var bd=v.budgetId?S.budgets.get(v.budgetId):null;
+    if(bd)v.fromMonth=bd.month;
+    if(!v.fromMonth)return'請選擇保留所屬月份,或選擇預算項目。';
     if(MONTHS.indexOf(v.toMonth)<=MONTHS.indexOf(v.fromMonth))return'延至月份必須晚於保留所屬月份('+v.fromMonth+')。';
     if(v.status==='已解除')return;
+    if(bd){var x=budgetCalc(bd),back=(old&&old.budgetId===bd.id&&isActive(old))?(Number(old.amount)||0):0,lf=x.left+back;
+      if(v.amount>lf+0.001)return'金額超過該預算項目可保留的餘額 $'+money(Math.max(0,lf))+'。'}
     var fm=function(c){return c.fromMonth||(S.budgets.get(c.budgetId)||{}).month||''};
     var mb=sum(kids('budgets',pid).filter(function(b){return b.month===v.fromMonth}),'total');
     if(!mb)return'「'+v.fromMonth+'」沒有計畫書經費,請確認保留所屬月份。';
@@ -854,17 +861,16 @@ function budgetTab(p,c){
   var ep=effPoa(p),note='';
   if(ep){var d=ep.amount-c.total;note=d<0?'<div class="note bad">計畫書經費 $'+money(c.total)+' 超過年度 POA 登記額 $'+money(ep.amount)+'(v'+ep.ver+')共 $'+money(-d)+',請調整預算,或到「年度 POA」辦理異動。</div>':'<div class="note info">年度 POA 登記額 $'+money(ep.amount)+'(v'+ep.ver+')・計畫書經費 $'+money(c.total)+' ・ '+(d?'尚有 $'+money(d)+' 未編入預算':'已全數編入預算')+'。</div>'}
   else note='<div class="note warn">這個方案(事工編碼 '+esc(p.code)+')尚未登記在「年度 POA」。請到「年度 POA」以方案為單位登記,系統才能比對 POA 與計畫書經費。</div>';
-  var MV=moveByMonth(p.id),SM=spentByMonth(p.id),months=MONTHS.filter(function(m){return c.B.some(function(b){return b.month===m})||SM[m]||MV.o[m]});
+  var HM=heldByMonth(p.id),MV=moveByMonth(p.id),SM=spentByMonth(p.id),months=MONTHS.filter(function(m){return c.B.some(function(b){return b.month===m})||SM[m]||MV.o[m]});
   var sel=V.bmonth&&months.indexOf(V.bmonth)>=0?V.bmonth:'all';
   var seg='<div class="seg" role="group" aria-label="月份">'+['all'].concat(months).map(function(m){return'<button data-a="bmonth" data-v="'+m+'" aria-pressed="'+(sel===m)+'">'+(m==='all'?'全部月份':esc(monthFull(p.id,m)))+'</button>'}).join('')+'</div>';
   var rows=[];
   (sel==='all'?months:[sel]).forEach(function(m){
-    var bs=by(c.B.filter(function(b){return b.month===m}),'no'),t=sum(bs,'total'),sp=SM[m]||0,h=0;
-    bs.forEach(function(b){var x=budgetCalc(b);h+=x.held});
+    var bs=by(c.B.filter(function(b){return b.month===m}),'no'),t=sum(bs,'total'),sp=SM[m]||0,h=HM[m]||0;
     var mo=MV.o[m]||0,mi=MV.i[m]||0;rows.push('<tr><th colspan="12" style="text-align:left;background:var(--accent-soft);color:var(--fg)">'+esc(monthFull(p.id,m))+'　計畫書 $'+money(t)+' ・ 已核銷 $'+money(sp)+(mi?'(含他月保留款轉入 $'+money(mi)+')':'')+(h?' ・ 保留 $'+money(h):'')+(mo?' ・ 保留轉出(改列他月使用) $'+money(mo):'')+' ・ 餘額 $'+money(t-sp-h-mo+mi)+'</th></tr>');
     bs.forEach(function(b){var x=budgetCalc(b);
       rows.push('<tr'+(x.left<0?' class="neg"':'')+'><td>'+esc(catOf(b))+(catOk(b.cat)?'':' <span class="pill wait" title="不在公司規定類別">⚠</span>')+'</td><td class="n">'+esc(b.no)+'</td><td>'+esc(b.item)+'</td><td class="n">'+money(b.price)+'</td><td class="n">'+esc(b.qty)+'</td><td>'+esc(b.unit||'')+'</td><td class="n">'+money(b.total)+'</td><td class="n">'+money(x.spent)+'</td><td class="n">'+money(x.held)+'</td><td class="n bal">'+money(x.left)+'</td><td>'+esc(b.note||'')+'</td><td class="act">'+rowBtns('budget',b.id)+'</td></tr>')})});
-  var msum=months.map(function(m){var bs=c.B.filter(function(b){return b.month===m}),t=sum(bs,'total'),sp=SM[m]||0,h=0;bs.forEach(function(b){var x=budgetCalc(b);h+=x.held});var mo=MV.o[m]||0,mi=MV.i[m]||0;return'<tr><td>'+esc(monthFull(p.id,m))+'</td><td class="n">'+money(t)+'</td><td class="n">'+money(sp)+(mi?'<br><small>含轉入 '+money(mi)+'</small>':'')+'</td><td class="n">'+money(h+mo)+(mo?'<br><small>含轉出 '+money(mo)+'</small>':'')+'</td><td class="n">'+money(t-sp-h-mo+mi)+'</td><td class="n">'+(t?pct(sp-mi,t):0)+'%</td></tr>'});
+  var msum=months.map(function(m){var bs=c.B.filter(function(b){return b.month===m}),t=sum(bs,'total'),sp=SM[m]||0,h=HM[m]||0;var mo=MV.o[m]||0,mi=MV.i[m]||0;return'<tr><td>'+esc(monthFull(p.id,m))+'</td><td class="n">'+money(t)+'</td><td class="n">'+money(sp)+(mi?'<br><small>含轉入 '+money(mi)+'</small>':'')+'</td><td class="n">'+money(h+mo)+(mo?'<br><small>含轉出 '+money(mo)+'</small>':'')+'</td><td class="n">'+money(t-sp-h-mo+mi)+'</td><td class="n">'+(t?pct(sp-mi,t):0)+'%</td></tr>'});
   return note+catWarn(c.B)+bvSection(p)+sec('經費預算明細(依月份)',impBtn('budget')+addBtn('budget','新增預算項目'),
     '<div style="padding:.6rem .9rem">'+seg+'</div>'+table(['類別','#項次','項目','#單價','#數量','單位','#總價','#已核銷','#保留展延','#餘額','說明',''],rows,
     '<tr><td colspan="6">總計'+(sel==='all'?'':'(全年度)')+'</td><td class="n">'+money(c.total)+'</td><td class="n">'+money(c.spent)+'</td><td class="n">'+money(c.held)+'</td><td class="n">'+money(c.avail)+'</td><td colspan="2"></td></tr>','尚未編列預算,請新增預算項目。')
