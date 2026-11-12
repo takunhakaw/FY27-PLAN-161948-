@@ -253,7 +253,7 @@ var CFG={GAS_URL:'https://script.google.com/macros/s/AKfycbzQkkhyyrB_0whPdsYDr1P
    date:公告日期;title:標題(可省略);text:內文(可換行 \n);until:到這一天(含)後自動不顯示(可省略)。
    清單是空的([])時,登入畫面不會出現公告區塊。 */
 var NOTICES=[
-  {date:'2026-11-12',title:'系統公告',text:'成果報告可由督導於「督導系統 → 成果報告下載」單份或批量下載。\n年度以 10 月至隔年 9 月計:FY26 = 2025/10–2026/09;FY27 = 2026/10–2027/09。'}
+  {date:'2026-11-12',title:'系統公告',text:'成果報告可由督導於「督導系統 → 成果報告下載」單份或批量下載。'}
 ];
 function noticeHtml(){
   var td=new Date(),t=td.getFullYear()+'-'+p2(td.getMonth()+1)+'-'+p2(td.getDate());
@@ -436,7 +436,7 @@ var SUP_ROLES=['督導','總督導','區處長'];
 async function teamCall(body){
   var r=await api(Object.assign({token:session.token},body),150000);
   if(r&&r.err==='auth'){await reauth();r=await api(Object.assign({token:session.token},body),150000)}
-  if(!r||!r.ok)throw new Error(r&&r.err==='forbidden'?'此帳號沒有督導權限':r&&r.err==='auth'?'登入已逾時,請重新登入':(r&&r.msg)||'無法連線到雲端');
+  if(!r||!r.ok)throw new Error(r&&r.err==='bad'?'雲端程式(Apps Script)尚未更新,缺少此功能,請管理員貼上新程式並重新部署':r&&r.err==='forbidden'?'此帳號沒有督導權限':r&&r.err==='auth'?'登入已逾時,請重新登入':(r&&r.msg)||'無法連線到雲端');
   return r;
 }
 window.__isSup=function(){return!!session&&SUP_ROLES.indexOf(session.role)>=0};
@@ -884,6 +884,8 @@ function homeView(list,title,sub,showNew){
   var cards=list.length?'<div class="cards">'+list.map(projectCard).join('')+'</div>'
    :'<div class="empty"><b>'+(showNew?'還沒有方案':'目前沒有項目')+'</b>'+(showNew?'建立第一個方案後,預算、場次、核銷與成果報告都會在方案內完成。':'')+(showNew&&canWrite?'<div class="row"><button class="btn pri" data-a="newProject">新增方案</button>'+impBtn('project','')+'<button class="btn" data-a="sample">載入範例方案</button></div>':'')+'</div>';
   var pend=showNew?mpAll().pending:[],ban=pend.length?'<div class="note warn" role="status"><b>督導已派發 '+pend.length+' 個方案給你,尚未建立:</b><div style="display:grid;gap:.3rem;margin-top:.4rem">'+pend.map(function(a){return'<div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center"><span>'+esc(a.code)+' '+esc(a.name||'')+'(POA 額度 $'+money(a.amount)+(a.noplan?',無須計畫書':'')+')</span>'+(canWrite?'<button class="btn sm" data-a="mpCreate" data-i="'+MP.list.indexOf(a)+'">建立這個方案</button>':'')+'</div>'}).join('')+'</div></div>':'';
+  if(showNew){var hh=MP.at?new Date(MP.at):null,tm=hh?String(hh.getHours()).padStart(2,'0')+':'+String(hh.getMinutes()).padStart(2,'0'):'';
+    ban+=MP.err?'<div class="note bad" role="alert">無法取得督導派發資料:'+esc(MP.err)+' <button class="btn sm" data-a="mpRefresh">重新查詢</button></div>':'<div class="rem" style="margin-bottom:.6rem">督導派發:'+(MP.loading?'查詢中…':MP.list.length?'共派發 '+MP.list.length+' 個方案給你':'目前沒有派發給你的項目')+(tm?'(查詢於 '+tm+')':'')+' <button class="btn sm" data-a="mpRefresh"'+(MP.loading?' disabled':'')+'>重新查詢</button></div>'}
   return'<h1>'+esc(title)+'</h1><p class="sub">'+esc(sub)+'</p>'+ban+(list.length&&showNew&&canWrite?'<div class="bar"><span></span><button class="btn pri" data-a="newProject">新增方案</button>'+impBtn('project','')+'</div>':'')+cards;
 }
 function statusActions(p,c){
@@ -1959,6 +1961,7 @@ var A={
  backup:async function(){try{var o=await window.__localdb.exportAll(),d=new Date(),n='方案系統備份_'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'.json';await downloads.save({filename:n,data:JSON.stringify(o)});toast('已下載備份檔(含 '+o.docs.length+' 筆資料),請存放在安全的位置')}catch(e){toast('備份失敗')}},
  restore:function(){var inp=document.createElement('input');inp.type='file';inp.accept='.json,application/json';inp.onchange=async function(){var f=inp.files[0];if(!f)return;try{var o=JSON.parse(await f.text());if(o.app!=='fangan'||!Array.isArray(o.docs))throw 0;var r=await ask('還原備份檔(含 '+o.docs.length+' 筆資料,備份時間 '+String(o.at||'').slice(0,10)+')?相同的資料會被備份檔內容覆蓋,其餘資料保留(可用來合併同事的備份)。','還原');if(!r)return;var mine=await ask('這份備份是你自己的資料嗎?換電腦或重新安裝後還原自己的備份,請按「是,我自己的」;若是同事交給你的備份,請按「取消」,會以同事的名義合併進來。','是,我自己的');var n=await window.__localdb.importAll(o,!!mine);toast('已還原 '+n+' 筆資料')}catch(e){toast('這不是有效的備份檔')}};inp.click()},
  newProject:function(){openForm('project',null,null)},
+ mpRefresh:function(){MP.at=0;MP.err='';mpLoad();sched()},
  mpCreate:function(d){var a=MP.list[Number(d.i)];if(!a)return;var m1=MONTHS.filter(function(m){return a.months&&a.months[m]})[0]||MONTHS[0];openForm('project',null,null,{code:a.code,name:a.name||'',center:a.center||'',fy:a.fy||curFY(),month:m1,noPlan:a.noplan?'1':''})},
  add:function(d){var extra=d.event?{eventId:d.event}:null;openForm(d.e,V.pid,null,extra)},
  edit:function(d){var E=ENT[d.e];var rec=S[E.col].get(d.id);if(!rec)return;openForm(d.e,V.pid,rec,d.e==='attendance'?{eventId:rec.eventId}:null)},
