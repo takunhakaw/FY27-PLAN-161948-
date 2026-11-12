@@ -1301,7 +1301,7 @@ function openPoaEditor(mode,plan){
   var el=document.getElementById('layer');window.__poaTarget=plan?plan.total:0;
   var cl=[];S.projects.forEach(function(x){if(x.code)cl.push(x)});
   el.innerHTML='<div class="ov"><div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="mt"><header id="mt">'+title+(plan?'('+esc(plan.center)+' '+esc(plan.fy)+')':'')+'</header><div style="padding:1rem 1.1rem;display:grid;gap:.8rem">'+top
-   +'<div class="actions"><button type="button" class="btn sm" data-a="poaTpl">下載匯入範本(.xlsx)</button><label class="btn sm" style="cursor:pointer">匯入 Excel<input type="file" accept=".xlsx,.xlsm" data-poafile hidden></label><span class="rem">依事工編碼帶入或更新各列金額,帶入後仍可手動調整</span></div><div id="poaimp"></div>'
+   +'<div class="actions"><button type="button" class="btn sm" data-a="poaTpl">下載匯入範本(.xlsx)</button><label class="btn sm" style="cursor:pointer">匯入 Excel<input type="file" accept=".xlsx,.xlsm" data-poafile hidden></label><span class="rem">依事工編碼帶入或更新各列金額,帶入後仍可手動調整</span></div><label class="rem" style="display:flex;gap:.4rem;align-items:flex-start;margin:.3rem 0"><input type="checkbox" id="poaLenient" checked style="margin-top:.2rem"><span><b>忽略錯誤、盡量匯入</b>:找不到頁籤/表頭/月份欄時改依欄位順序(事工編碼、方案名稱、10月~9月、備註)讀取;金額格式不標準(含「元」「NT$」等文字)時自動去除「元」「NT$」等符號;無法判讀的格子略過而不中斷;全部讀不到也不會報錯,只會提醒。取消勾選則嚴格檢查,有錯就停止匯入。</span></label><div id="poaimp"></div>'
    +'<div class="tw"><table class="pg" id="pg"><thead><tr><th>方案(事工編碼/名稱/承辦/綁定)</th>'+MONTHS.map(function(m){return'<th class="n">'+m+'</th>'}).join('')+'<th class="n">全年</th><th>備註</th><th></th></tr></thead><tbody>'+rows+'</tbody><tfoot><tr><td><button type="button" class="btn sm" data-a="poaAddRow">＋ 新增方案列</button></td>'+MONTHS.map(function(){return'<td class="n ct">0</td>'}).join('')+'<td class="n" id="pgt">0</td><td></td><td></td></tr></tfoot></table></div>'
    +'<datalist id="dl_poacode">'+cl.map(function(x){return'<option value="'+esc(x.code)+'">'+esc(x.name)+'</option>'}).join('')+'</datalist>'
    +'<div id="pchk" class="chk bad" role="status"></div><div class="err" id="perr" role="alert"></div>'
@@ -1320,26 +1320,36 @@ function poaTemplateSheets(){
   var hd=['事工編碼*','方案名稱'].concat(MONTHS,['備註']),r1=['FY27-001','週末籃球營'],r2=['FY27-002','社區烘焙班'];MONTHS.forEach(function(m,i){r1.push(m==='11月'||m==='12月'?12000:'');r2.push(m==='11月'?8000:'')});r1.push('範例備註');r2.push('');
   return[{name:'說明',noHead:1,wrap:1,widths:[110],rows:[['年度 POA 匯入(督導系統 → 年度 POA):「年度POA」頁籤的欄位為 事工編碼*／方案名稱／10月~9月／備註。每一列是一個方案,每個月份欄填該方案該月的 POA 金額(元)。'],['事工編碼必填;方案名稱、備註選填。月份欄請勿改名(10月~9月),沒有金額的月份留空。承辦社工的派發與方案綁定,匯入後在系統內用選單設定,不用寫在 Excel。'],['範例列請先刪除或改成你的資料。匯入後會帶入「年度 POA」編輯畫面,可再手動調整,全年合計必須等於原始 POA 年度總額才能儲存。'],['相同事工編碼的列會被更新,不同的會新增為新的方案列。']]},
     {name:'年度POA',widths:[16,24].concat(MONTHS.map(function(){return 10}),[24]),rows:[hd,r1,r2]}]}
-function poaParse(sheets){
+function poaParse(sheets,lenient){
   var sh=sheets.filter(function(x){return['年度POA','年度 POA','POA'].indexOf(String(x.name).trim())>=0})[0]||sheets.filter(function(x){return x.name!=='說明'})[0];
-  if(!sh)return{err:'找不到「年度POA」頁籤。'};
-  var rows=sh.rows,hi=-1,ci=-1,ni=-1,nt=-1,mi={};
-  for(var i=0;i<rows.length&&hi<0;i++){var hd=rows[i].map(cleanLabel);var k=hd.indexOf('事工編碼');if(k<0)k=hd.indexOf('事工編號');if(k>=0){hi=i;ci=k;ni=hd.indexOf('方案名稱');nt=hd.indexOf('備註');hd.forEach(function(h,j){if(/^\d{1,2}$/.test(h))h+='月';if(MONTHS.indexOf(h)>=0)mi[h]=j})}}
-  if(hi<0)return{err:'找不到表頭「事工編碼」,請使用範本。'};
-  if(!Object.keys(mi).length)return{err:'找不到月份欄(10月~9月),請使用範本。'};
-  var items=[],warns=[],seen={};
-  rows.slice(hi+1).forEach(function(r,n){var code=String(r[ci]==null?'':r[ci]).trim();if(!code||/^(合計|總計)$/.test(code))return;
-    var vals={},bad=null;MONTHS.forEach(function(m){if(mi[m]==null)return;var raw=String(r[mi[m]]==null?'':r[mi[m]]).replace(/[,\s$]/g,'');if(raw==='')return;var v=Number(raw);if(isNaN(v)||v<0){bad=m;return}vals[m]=v});
-    if(bad){warns.push('第 '+(hi+n+2)+' 列「'+code+'」的'+bad+'金額不是 0 以上的數字,該月略過');}
+  if(!sh&&lenient)sh=sheets[0];
+  if(!sh)return lenient?{items:[],warns:['檔案內沒有任何頁籤,未帶入資料。']}:{err:'找不到「年度POA」頁籤。'};
+  var rows=sh.rows||[],hi=-1,ci=-1,ni=-1,nt=-1,mi={},warns=[],pos=false;
+  for(var i=0;i<rows.length&&hi<0;i++){var hd=(rows[i]||[]).map(cleanLabel);var k=hd.indexOf('事工編碼');if(k<0)k=hd.indexOf('事工編號');if(k>=0){hi=i;ci=k;ni=hd.indexOf('方案名稱');nt=hd.indexOf('備註');hd.forEach(function(h,j){if(/^\d{1,2}$/.test(h))h+='月';if(MONTHS.indexOf(h)>=0)mi[h]=j})}}
+  if(hi<0){
+    if(!lenient)return{err:'找不到表頭「事工編碼」,請使用範本。'};
+    pos=true;hi=-1;ci=0;ni=1;nt=2+MONTHS.length;warns.push('找不到表頭「事工編碼」,已改依欄位順序讀取(第1欄事工編碼、第2欄方案名稱、第3~14欄 10月~9月、第15欄備註),請確認金額是否對應正確。')}
+  if(!Object.keys(mi).length){
+    if(!lenient)return{err:'找不到月份欄(10月~9月),請使用範本。'};
+    var st=Math.max(ci,ni)+1;MONTHS.forEach(function(m,j){mi[m]=st+j});if(!pos)warns.push('找不到月份欄(10月~9月),已從表頭右側依序當作 10月~9月 讀取,請確認。')}
+  var items=[],seen={};
+  rows.slice(hi+1).forEach(function(r,n){r=r||[];var code=String(r[ci]==null?'':r[ci]).trim();if(!code||/^(合計|總計)$/.test(code))return;
+    var vals={},bad=null,got=0;MONTHS.forEach(function(m){if(mi[m]==null)return;var cell=String(r[mi[m]]==null?'':r[mi[m]]),raw=cell.replace(/[,\s$]/g,'');if(raw==='')return;var v=Number(raw);
+      if((isNaN(v)||v<0)&&lenient){v=Number(cell.replace(/NT\$|NTD|TWD|元|圓|＄|\$|,|，|\s/gi,''))}
+      if(isNaN(v)||v<0){bad=m;return}vals[m]=v;if(v>0)got++});
+    if(lenient&&pos&&!got)return;
+    if(bad)warns.push('第 '+(hi+n+2)+' 列「'+code+'」的'+bad+'金額無法判讀,該月略過');
     if(seen[code])warns.push('事工編碼「'+code+'」出現多次,以最後一列為準');seen[code]=1;
     items=items.filter(function(x){return x.code!==code});items.push({code:code,name:ni>=0?String(r[ni]==null?'':r[ni]).trim():'',note:nt>=0?String(r[nt]==null?'':r[nt]).trim():'',vals:vals})});
-  if(!items.length)return{err:'沒有可匯入的資料列。'};
+  if(!items.length){if(lenient){warns.push('沒有讀到可匯入的資料列,未帶入任何方案。');return{items:items,warns:warns}}return{err:'沒有可匯入的資料列。'}}
   return{items:items,warns:warns}}
 async function poaFile(f){
   var box=document.getElementById('poaimp');if(!box)return;
   if(!/\.xls[xm]$/i.test(f.name)){box.innerHTML='<div class="note bad">請選擇 .xlsx 檔。</div>';return}
   var sheets;try{sheets=await readXlsx(await f.arrayBuffer())}catch(e){box.innerHTML='<div class="note bad">無法讀取這個檔案:'+esc(e&&e.message||e)+'</div>';return}
-  var r=poaParse(sheets);if(r.err){box.innerHTML='<div class="note bad">'+esc(r.err)+'</div>';return}
+  var lk=document.getElementById('poaLenient'),len=!!(lk&&lk.checked),r;
+  try{r=poaParse(sheets,len)}catch(e){if(!len){box.innerHTML='<div class="note bad">匯入失敗:'+esc(e&&e.message||e)+'</div>';return}r={items:[],warns:['檔案內容無法判讀('+(e&&e.message||e)+'),未帶入資料。']}}
+  if(r.err){box.innerHTML='<div class="note bad">'+esc(r.err)+(lk?'(可勾選「忽略錯誤、盡量匯入」再試一次)':'')+'</div>';return}
   inSup(function(){
   var tb=document.querySelector('#pg tbody'),upd=0,add=0;
   [].slice.call(tb.querySelectorAll('tr')).forEach(function(tr){var c=tr.querySelector('.pc').value.trim(),any=[].slice.call(tr.querySelectorAll('.pn')).some(function(i){return Number(i.value)>0});if(!c&&!any)tr.remove()});
