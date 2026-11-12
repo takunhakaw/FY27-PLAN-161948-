@@ -137,6 +137,7 @@ tr.neg td.bal{color:var(--bad);font-weight:700}
 .lay2{display:grid;grid-template-columns:17rem minmax(0,1fr);gap:1rem;align-items:start}
 @media (max-width:860px){.lay2{grid-template-columns:1fr}}
 .vers{display:grid;gap:.5rem}
+.versh{display:flex;overflow-x:auto;gap:.5rem;padding-bottom:.3rem}.versh .ver{flex:0 0 14rem;width:auto}
 .ver{text-align:left;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem;cursor:pointer}
 .ver[aria-current="true"]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
 .ver b{display:flex;justify-content:space-between;gap:.4rem}
@@ -252,7 +253,7 @@ var CFG={GAS_URL:'https://script.google.com/macros/s/AKfycbzQkkhyyrB_0whPdsYDr1P
    date:公告日期;title:標題(可省略);text:內文(可換行 \n);until:到這一天(含)後自動不顯示(可省略)。
    清單是空的([])時,登入畫面不會出現公告區塊。 */
 var NOTICES=[
-  {date:'2026-11-12',title:'系統公告',text:'成果報告可由督導於「督導系統 → 成果報告下載」單份或批量下載。\n年度以 10 月至隔年 9 月計:FY26 = 2025/10–2026/09;FY27 = 2026/10–2027/09。'}
+  {date:'2026-11-12',title:'系統公告',text:'成果報告可由督導於「督導系統 → 成果報告下載」單份或批量下載。\n'}
 ];
 function noticeHtml(){
   var td=new Date(),t=td.getFullYear()+'-'+p2(td.getMonth()+1)+'-'+p2(td.getDate());
@@ -1232,10 +1233,19 @@ function poaView(){
     return'<button class="ver" data-a="poaver" data-id="'+v.id+'" aria-current="'+(v.id===sel.id)+'"><b><span>v'+v.ver+' '+(v.ver?'異動':'原始')+'</span>'+(v.id===latest.id?'<span class="pill run">生效中</span>':'')+'</b><small>'+esc(v.date||'')+(v.byName?' ・ '+esc(v.byName):'')+'</small><small>合計 $'+money(v.total)+(pv?' ・ 異動 '+d+' 格':'')+'</small>'+(v.reason&&v.ver?'<small>'+esc(v.reason)+'</small>':'')+(xferText(v)?'<small>'+esc(xferText(v))+'</small>':'')+(v.approver?'<small>核定:'+esc(v.approver)+'</small>':'')+'</button>'}).join('');
   var A=cellMap(sel.lines),P=prev?cellMap(prev.lines):null;
   var codes=codesOfMaps(A,L,st.plan,st.spent);
-  var srows=codes.map(function(code){var al=0,pl=0,sp=0;MONTHS.forEach(function(m){var k=code+SEP+m;al+=L[k]||0;pl+=st.plan[k]||0;sp+=st.spent[k]||0});var ps=projsOfCode(code,plan.center),sls=asgSlots(latest,code);
+  var mcol=MONTHS.map(function(){return 0});
+  var srows=[];codes.forEach(function(code){var al=0,pl=0,sp=0,lm={},pm={};MONTHS.forEach(function(m,mi){var k=code+SEP+m;lm[m]=L[k]||0;pm[m]=st.plan[k]||0;al+=lm[m];pl+=pm[m];sp+=st.spent[k]||0;mcol[mi]+=lm[m]});
+    var ps=projsOfCode(code,plan.center),sls=asgSlots(latest,code),spl=al>0?poaSplit(latest,code,plan.center,null):null;
+    var kids2=spl&&spl.split?ps.filter(function(x){return spl.map[x.id]!=null}):[];
     var stt=!ps.length?'<span class="pill wait">尚未建立方案</span>':al===0?'<span class="pill bad">未登記 POA</span>':sp>al+.005?'<span class="pill bad">核銷超過登記額</span>':pl>al+.005?'<span class="pill bad">計畫書超過登記額</span>':'<span class="pill run">正常</span>';
     var btns=TEAMV&&canWrite&&al>0?sls.map(function(sl,i){return'<button class="btn sm" data-a="poaHandover" data-code="'+esc(code)+'" data-slot="'+i+'">'+(sls.length>1?'方案'+(i+1)+' ':'')+(sl.chain.length?'交接/換人':'派發')+'</button>'}).join(' ')+(sls.length<6?' <button class="btn sm" data-a="poaHandover" data-code="'+esc(code)+'" data-slot="'+sls.length+'">＋'+(sls.length?'同編碼再加方案':'派發')+'</button>':''):'';
-    return'<tr><td><b>'+esc(code)+'</b></td><td>'+esc(codeName(code,latest))+(TEAMV?asgHtml(latest,code):'')+((latest.notes&&latest.notes[code])?'<br><small class="rem">備註:'+esc(latest.notes[code])+'</small>':'')+(ps.length?'<br><small>'+(ps.length>1?'<span class="pill run">共 '+ps.length+' 個方案</span> ':(sls.length?'<span class="pill run">已綁定</span> ':'<span class="pill wait">依編碼比對</span> '))+esc(ps.map(function(x){return x.name}).join('、'))+'</small>':'')+(ps.length>1&&al>0?(function(){var spl=poaSplit(latest,code,plan.center,null);return'<br><small>各方案 POA 分配:'+ps.filter(function(x){return spl.map[x.id]!=null}).map(function(x){return esc(x.name)+' <b>$'+money(spl.map[x.id])+'</b>'}).join('、')+(spl.est?' <span class="pill wait">部分未設定,暫平分</span>':'')+'</small>'})():'')+'</td><td class="n">'+money(al)+'</td><td class="n">'+(ps.length?money(pl):'—')+'</td><td class="n">'+(ps.length?money(al-pl):'—')+'</td><td class="n">'+money(sp)+'</td><td class="n">'+pct(sp,al)+'%</td><td>'+stt+'</td><td class="act">'+btns+(ps.length?' '+ps.map(function(x){return'<button class="btn sm" data-a="'+(TEAMV?'supProj':'open')+'" data-id="'+x.id+'">'+(TEAMV?'查看':'開啟')+(ps.length>1?' '+esc(String(x.name||'').slice(0,6)):'方案')+'</button>'}).join(' '):'')+'</td></tr>'});
+    var openBtn=function(x){return'<button class="btn sm" data-a="'+(TEAMV?'supProj':'open')+'" data-id="'+x.id+'">'+(TEAMV?'查看':'開啟')+(ps.length>1?' '+esc(String(x.name||'').slice(0,6)):'方案')+'</button>'};
+    var mcells=MONTHS.map(function(m){var a=lm[m],p=pm[m];return'<td class="n'+(a||p?'':' z')+(p>a+.005?' over':'')+'">'+(a?'<b>'+money(a)+'</b>':'—')+(p?'<br><small>計 '+money(p)+'</small>':'')+'</td>'}).join('');
+    srows.push('<tr><td><b>'+esc(code)+'</b></td><td>'+esc(codeName(code,latest))+(TEAMV?asgHtml(latest,code):'')+((latest.notes&&latest.notes[code])?'<br><small class="rem">備註:'+esc(latest.notes[code])+'</small>':'')+(ps.length?'<br><small>'+(ps.length>1?'<span class="pill run">共 '+ps.length+' 個方案</span> 登記額 = 各方案計畫書經費合計':(sls.length?'<span class="pill run">已綁定</span> ':'<span class="pill wait">依編碼比對</span> ')+esc(ps.map(function(x){return x.name}).join('、')))+'</small>':'')+'</td><td class="n">'+money(al)+'</td><td class="n">'+(ps.length?money(pl):'—')+'</td><td class="n">'+(ps.length?money(Math.round((al-pl)*100)/100):'—')+'</td><td class="n">'+money(sp)+'</td><td class="n">'+pct(sp,al)+'%</td>'+mcells+'<td>'+stt+'</td><td class="act">'+btns+(ps.length&&ps.length===1?' '+openBtn(ps[0]):'')+'</td></tr>');
+    kids2.forEach(function(x){var own={},ot=0,os=0;S.budgets.forEach(function(b){if(b.projectId===x.id){own[b.month]=(own[b.month]||0)+(Number(b.total)||0);ot+=Number(b.total)||0}});S.expenditures.forEach(function(e){if(e.projectId===x.id)os+=Number(e.amount)||0});
+      var aa=spl.map[x.id],est=spl.estIds&&spl.estIds.indexOf(x.id)>=0;
+      var ks=os>aa+.005?'<span class="pill bad">核銷超過登記額</span>':ot>aa+.005?'<span class="pill bad">計畫書超過登記額</span>':'<span class="pill run">正常</span>';
+      srows.push('<tr style="background:rgba(127,127,127,.07)"><td></td><td>└ '+esc(x.name||'')+(TEAMV?'<br><small class="rem">'+esc(supOwner(x))+'</small>':'')+(est?' <span class="pill wait">暫平分</span>':'')+'</td><td class="n">'+money(aa)+'</td><td class="n">'+money(Math.round(ot*100)/100)+'</td><td class="n">'+money(Math.round((aa-ot)*100)/100)+'</td><td class="n">'+money(Math.round(os*100)/100)+'</td><td class="n">'+pct(os,aa)+'%</td>'+MONTHS.map(function(m){var v=own[m]||0;return'<td class="n'+(v?'':' z')+'">'+(v?'<small>計</small> '+money(Math.round(v*100)/100):'—')+'</td>'}).join('')+'<td>'+ks+'</td><td class="act">'+openBtn(x)+'</td></tr>')})});
   var head='<th>方案</th>'+MONTHS.map(function(m){return'<th class="n">'+m+'</th>'}).join('')+'<th class="n">全年</th>';
   var colT=MONTHS.map(function(){return 0}),gt=0;
   var rows=codes.map(function(code){var rt=0;
@@ -1249,8 +1259,8 @@ function poaView(){
   var foot='<tr><td>合計</td>'+colT.map(function(v){return'<td class="n">'+mm(Math.round(v*100)/100)+'</td>'}).join('')+'<td class="n">'+money(Math.round(gt*100)/100)+'</td></tr>';
   var seg='<div class="seg" role="group" aria-label="檢視內容">'+Object.keys(PM).map(function(k){return'<button data-a="poametric" data-v="'+k+'" aria-pressed="'+(metric===k)+'">'+PM[k]+'</button>'}).join('')+'</div>';
   var note=metric==='alloc'?'顯示 v'+sel.ver+(prev?',小字是相較 v'+prev.ver+' 的增減':'')+'。':'以生效版本 v'+latest.ver+' 為基準比較,紅色代表超過登記額。';
-  return h+'<div class="lay2"><div><h3 style="margin-bottom:.5rem">版本歷程(共 '+vs.length+' 版)</h3><div class="vers">'+vl+'</div></div><div>'
-    +sec('各方案登記狀況(生效版本 v'+latest.ver+')','',table(['事工編碼','方案名稱','#POA 登記額','#計畫書經費','#登記額−計畫書','#已核銷','#執行率','狀態',''],srows,'<tr><td colspan="2">合計</td><td class="n">'+money(lt)+'</td><td class="n">'+money(planT)+'</td><td class="n">'+money(Math.round((lt-planT)*100)/100)+'</td><td class="n">'+money(spentT)+'</td><td class="n">'+pct(spentT,lt)+'%</td><td colspan="2"></td></tr>','尚無登記'),1)
+  return h+'<div><div><h3 style="margin-bottom:.5rem">版本歷程(共 '+vs.length+' 版)</h3><div class="vers versh">'+vl+'</div></div><div style="margin-top:1rem">'
+    +sec('各方案登記狀況(生效版本 v'+latest.ver+')','',table(['事工編碼','方案名稱','#POA 登記額','#計畫書經費','#登記額−計畫書','#已核銷','#執行率'].concat(MONTHS.map(function(m){return'#'+m+' 登記/計畫'}),['狀態','']),srows,'<tr><td colspan="2">合計</td><td class="n">'+money(lt)+'</td><td class="n">'+money(planT)+'</td><td class="n">'+money(Math.round((lt-planT)*100)/100)+'</td><td class="n">'+money(spentT)+'</td><td class="n">'+pct(spentT,lt)+'%</td>'+mcol.map(function(v){return'<td class="n">'+mm(Math.round(v*100)/100)+'</td>'}).join('')+'<td colspan="2"></td></tr>','尚無登記'),1)
     +sec('年度配置表(方案 × 月份)',seg,(sel.reason&&sel.ver?'<p class="hint" style="padding:.1rem .9rem .5rem">v'+sel.ver+' 異動原因:'+esc(sel.reason)+'</p>':'')+(codes.length?'<div class="tw"><table class="mx"><thead><tr>'+head+'</tr></thead><tbody>'+rows+'</tbody><tfoot>'+foot+'</tfoot></table></div>':'<p class="hint" style="padding:.8rem .9rem">尚無登記資料</p>')+'<p class="hint" style="padding:.5rem .9rem">'+note+'方案以事工編碼辨識,月份對應預算項目的月份;統計範圍是執行中心「'+esc(plan.center)+'」的所有方案。</p>',1)
     +'</div></div>';
 }
