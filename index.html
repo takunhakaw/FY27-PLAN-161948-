@@ -170,6 +170,17 @@ body{margin:0;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-
 .lgbox label{font-size:.85rem;color:var(--muted);display:block;margin-bottom:.2rem}
 .lgbox select,.lgbox input[type=password],.lgbox input[type=text]{width:100%;background:var(--field);border:1px solid var(--line);border-radius:6px;padding:.6rem .65rem;font-size:16px}
 .lgnote{border:1px solid var(--line);border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:8px;padding:.6rem .75rem;display:grid;gap:.45rem;max-height:11rem;overflow-y:auto}.lgnote h3{margin:0;font-size:.9rem;color:var(--accent)}.lgnote .it{font-size:.85rem;line-height:1.5;color:var(--fg)}.lgnote .it small{color:var(--muted);margin-right:.4rem}.lgnote .it+.it{border-top:1px dashed var(--line);padding-top:.4rem}
+.lgwrap{display:flex;gap:1rem;align-items:flex-start;justify-content:center;width:100%;max-width:58rem;margin:auto}
+.lgwrap .lgbox{margin:0;flex:0 0 24rem;max-width:24rem}
+.lgfun{flex:1 1 0;min-width:0;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden;display:grid;align-content:start}
+.lgfun .ph{width:100%;height:14rem;object-fit:cover;display:block;background:var(--accent-soft)}
+.lgfun .emo{height:14rem;display:flex;align-items:center;justify-content:center;font-size:4.5rem;background:linear-gradient(135deg,var(--accent-soft),var(--info-bg))}
+.lgfun .tx{padding:1rem 1.2rem 1.2rem;display:grid;gap:.4rem}
+.lgfun .tag{font-size:.78rem;color:var(--accent);font-weight:700}
+.lgfun h3{margin:0;font-size:1.1rem}
+.lgfun p{margin:0;line-height:1.7;overflow-wrap:anywhere}
+.lgfun small{color:var(--muted)}
+@media (max-width:760px){.lgwrap{flex-direction:column;align-items:stretch}.lgwrap .lgbox{flex:none;max-width:none;width:100%}.lgfun .ph,.lgfun .emo{height:11rem}}
 .lgerr{color:var(--bad);font-size:.85rem;min-height:1.3em}
 .more{position:relative}
 .more>summary{list-style:none;cursor:pointer;display:inline-block}
@@ -255,6 +266,35 @@ var CFG={GAS_URL:'https://script.google.com/macros/s/AKfycbzQkkhyyrB_0whPdsYDr1P
 var NOTICES=[
   {date:'2026-11-12',title:'系統公告',text:'成果報告可由督導於「督導系統 → 成果報告下載」單份或批量下載。\n年度以 10 月至隔年 9 月計:FY26 = 2025/10–2026/09;FY27 = 2026/10–2027/09。'}
 ];
+/* ★ 登入畫面右側「今日小驚喜」:管理員要更新時,新增/修改下面的項目即可(每次開啟登入畫面會隨機挑一則,盡量不與上次重複)。
+   title:標題(可省略);text:內文(可換行 \n);img:照片網址(可填 GitHub 倉庫內的相對路徑,例如 'fun/otter.jpg',或 https:// 完整網址;可省略);
+   emoji:沒有照片時顯示的大圖示;credit:照片來源/說明(可省略);until:到這一天(含)後自動不顯示(可省略)。
+   清單是空的([])時,登入畫面維持單欄。照片請先取得授權或使用自己拍攝的照片,並避免出現兒童可辨識的面孔。 */
+var FUN=[
+  {title:'章魚有三顆心臟',text:'章魚有三顆心臟:兩顆負責把血液送到鰓,另一顆負責送到全身。\n今天也請記得:你的努力,有很多顆心在背後支持著你。',emoji:'🐙'},
+  {title:'海獺的小默契',text:'海獺睡覺時常會手牽著手,避免被海浪沖散。\n再忙的日子,也別忘了跟身邊的夥伴互相扶持一下。',emoji:'🦦'},
+  {title:'今日小提醒',text:'先深呼吸三次,喝一口水,再開始今天的工作。\n你做的每一件小事,都有孩子與家庭感受得到。',emoji:'☕'}
+];
+function funHtml(){return'<aside class="lgfun" id="lgfunbox" style="display:none" aria-label="今日小驚喜"></aside>'}
+function funCard(box,n,src){
+  var emo='<div class="emo" aria-hidden="true">'+esc(n.emoji||'🌱')+'</div>';
+  var pic=src?'<img class="ph" src="'+esc(src)+'" alt="'+esc(n.title||'今日小驚喜')+'" onerror="this.outerHTML=this.getAttribute(\'data-emo\')" data-emo="'+esc(emo)+'">':emo;
+  box.innerHTML=pic+'<div class="tx"><span class="tag">🌿 今日小驚喜</span>'+(n.title?'<h3>'+esc(n.title)+'</h3>':'')+(n.text?'<p>'+esc(n.text).replace(/\n/g,'<br>')+'</p>':'')+(n.credit?'<small>'+esc(n.credit)+'</small>':'')+'</div>';
+  box.style.display=''}
+/* 登入畫面右側卡片:優先讀督導在「督導系統 → 秘」設定的內容;雲端讀不到時,改用上方 FUN 清單(內建備用) */
+async function funLoad(o){
+  var box=o.querySelector('#lgfunbox');if(!box||!cfgOk())return;
+  var td=new Date(),t=td.getFullYear()+'-'+p2(td.getMonth()+1)+'-'+p2(td.getDate()),list=null,cloud=false;
+  try{var r=await api({action:'funlist'},10000);if(r&&r.ok&&Array.isArray(r.items)){list=r.items;cloud=true;try{localStorage.setItem('fangan_funcache',JSON.stringify(list))}catch(e){}}}catch(e){}
+  if(!list){try{list=JSON.parse(localStorage.getItem('fangan_funcache')||'null');cloud=!!list}catch(e){}}
+  if(!list||!list.length){list=FUN.filter(function(n){return n&&(n.text||n.img)&&(!n.until||t<=n.until)}).map(function(n,i){return Object.assign({id:'L'+i,local:1},n)})}
+  if(!list.length||!document.body.contains(o))return;
+  var last='';try{last=localStorage.getItem('fangan_lastfun')||''}catch(e){}
+  var pool=list.length>1?list.filter(function(n){return String(n.id)!==last}):list,n=pool[Math.floor(Math.random()*pool.length)];
+  try{localStorage.setItem('fangan_lastfun',String(n.id))}catch(e){}
+  funCard(box,n,n.local?n.img:'');
+  if(!n.local&&n.hasImg){try{var ri=await api({action:'funimg',id:n.id},20000);if(ri&&ri.ok&&ri.img&&document.body.contains(o))funCard(box,n,ri.img)}catch(e){}}
+}
 function noticeHtml(){
   var td=new Date(),t=td.getFullYear()+'-'+p2(td.getMonth()+1)+'-'+p2(td.getDate());
   var L=NOTICES.filter(function(n){return n&&n.text&&(!n.until||t<=n.until)});
@@ -360,13 +400,13 @@ async function sync(){
 function loginFlow(prefUid,msg,lock){
   return new Promise(function(resolve){
     var o=document.createElement('div');o.className='lgov';o.setAttribute('role','dialog');o.setAttribute('aria-modal','true');o.setAttribute('aria-labelledby','lgt');
-    o.innerHTML='<form class="lgbox" id="lgf" autocomplete="on"><h2 id="lgt">方案成果管理系統</h2><div class="sub" style="margin:0">'+(lock?'登入已逾時,請重新輸入密碼。尚未同步的修改仍保留在這個裝置,登入後會自動補上傳。':'請選擇你的姓名,輸入密碼後登入。只能開啟自己的資料。')+'</div>'+(lock?'':noticeHtml())
+    o.innerHTML='<div class="lgwrap"><form class="lgbox" id="lgf" autocomplete="on"><h2 id="lgt">方案成果管理系統</h2><div class="sub" style="margin:0">'+(lock?'登入已逾時,請重新輸入密碼。尚未同步的修改仍保留在這個裝置,登入後會自動補上傳。':'請選擇你的姓名,輸入密碼後登入。只能開啟自己的資料。')+'</div>'+(lock?'':noticeHtml())
      +'<div><label for="lgu">我的姓名</label><select id="lgu" required><option value="">載入名單中…</option></select></div>'
      +'<div><label for="lgp">密碼(第一次請輸入系統預設密碼)</label><input id="lgp" type="password" autocomplete="current-password" required></div>'
      +'<label style="display:flex;gap:.4rem;align-items:center;margin:0"><input type="checkbox" id="lgs"> 顯示密碼</label>'
      +'<div class="lgerr" id="lge" role="alert">'+esc(msg||'')+'</div>'
      +'<button class="btn pri" id="lgb" type="submit" style="padding:.6rem">登入</button>'
-     +'<div class="sub" style="margin:0;font-size:.78rem">'+VER+'。忘記密碼請聯絡系統管理員重設。</div></form>';
+     +'<div class="sub" style="margin:0;font-size:.78rem">'+VER+'。忘記密碼請聯絡系統管理員重設。</div></form>'+(lock?'':funHtml())+'</div>';
     document.body.appendChild(o);
     var sel=o.querySelector('#lgu'),pw=o.querySelector('#lgp'),err=o.querySelector('#lge'),btn=o.querySelector('#lgb');
     o.querySelector('#lgs').onchange=function(){pw.type=this.checked?'text':'password'};
@@ -395,7 +435,7 @@ function loginFlow(prefUid,msg,lock){
       }catch(e){setErr('無法連線到雲端,請檢查網路後再試。')}
       btn.disabled=false;btn.textContent='登入';pw.select();
     };
-    loadUsers();
+    loadUsers();funLoad(o);
   });
 }
 function reauth(){
@@ -440,6 +480,7 @@ async function teamCall(body){
   return r;
 }
 window.__isSup=function(){return!!session&&SUP_ROLES.indexOf(session.role)>=0};
+window.__fun={admin:function(){return teamCall({action:'funadmin'})},save:function(item,img){var b={action:'funsave',item:item};if(img!==undefined)b.img=img;return teamCall(b)},del:function(id){return teamCall({action:'fundel',id:id})},img:async function(id){var r=await api({action:'funimg',id:id},30000);return r&&r.ok?r.img:''}};
 window.__mypoa=function(){return teamCall({action:'mypoa'})};
 window.__team={load:function(){return teamCall({action:'team'})},photos:function(items){return teamCall({action:'photos',items:items})}};
 window.__localdb={uid:function(){return session&&session.uid},
@@ -760,6 +801,9 @@ var ENT={
   {k:'selfEval',l:'執行成果之自評、困難及期待',t:'long'},
   {k:'survey',l:'問卷分析',t:'long'}]}},
  profile:{col:'staff',label:'姓名與身分',fields:function(){return[{k:'name',l:'顯示姓名',t:'text',req:1,help:'會顯示在方案的「主責社工」與報告中'},{k:'role',l:'身分',t:'select',opts:ROLES,req:1,help:'決定看到的按鈕:督導以上可看全部方案並簽核'}]}},
+ funitem:{col:'staff',label:'小驚喜',fields:function(){return[{k:'title',l:'標題(選填)',t:'text'},{k:'text',l:'內文(可換行)',t:'long',help:'有趣的小知識、暖心小語、中心花絮都可以。'},{k:'emoji',l:'沒有照片時顯示的圖示',t:'text',ph:'例如 🐙'},{k:'photo',l:'照片(選填)',t:'photo',help:'登入前的畫面所有人都看得到,請使用自己拍攝或已取得授權的照片,避免出現兒童可辨識的面孔。'},{k:'credit',l:'照片來源/說明(選填)',t:'text'},{k:'until',l:'到期日(選填)',t:'date',help:'過了這天(含當天)就不再顯示;留空代表一直顯示。'},{k:'on',l:'狀態',t:'select',opts:[{v:'1',l:'顯示中'},{v:'0',l:'停用(暫不顯示)'}]}]},init:function(){return{on:'1'}},
+  validate:function(v){if(!String(v.text||'').trim()&&!v.photo)return'請至少填寫內文或上傳照片。'},
+  save:async function(v,old){var item={id:old&&old.id,title:v.title,text:v.text,emoji:v.emoji,credit:v.credit,until:v.until,on:v.on!=='0'},img;if(v.photo&&!(old&&old.photo===v.photo))img=v.photo;else if(!v.photo&&old&&old.hasImg)img=null;await window.__fun.save(item,img);toast('已儲存');SEC.items=null;secLoad()}},
  supnote:{col:'projects',label:'督導意見',fields:function(){return[{k:'supNote',l:'督導意見',t:'long'}]}}
 };
 
@@ -2061,6 +2105,19 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape'&&modalOpen&&
 
 /* ---------- 督導系統(唯讀整合全中心資料) ---------- */
 var TS=null,TM={loading:false,err:'',at:null,users:{}},PHC={};
+var SEC={items:null,loading:false,err:'',imgs:{}};
+async function secLoad(){if(SEC.loading)return;SEC.loading=true;SEC.err='';sched();try{var r=await window.__fun.admin();SEC.items=r.items||[]}catch(e){SEC.err=String(e&&e.message||e);SEC.items=SEC.items||null}SEC.loading=false;sched();
+  var need=(SEC.items||[]).filter(function(x){return x.hasImg&&!SEC.imgs[x.id]});for(var i=0;i<need.length;i++){try{SEC.imgs[need[i].id]=await window.__fun.img(need[i].id);sched()}catch(e){}}}
+function supSec(){
+  if(!SEC.items&&!SEC.loading&&!SEC.err)setTimeout(secLoad,0);
+  var td=today(),h='<div class="note info">這裡設定的內容會顯示在<b>登入畫面右側的「今日小驚喜」</b>:每次開啟登入頁隨機挑一則(盡量與上次不同)。可放文字與照片、設定到期日,也可暫時停用。登入前的畫面所有人都看得到,請勿放入個資,照片請使用自己拍攝或已取得授權的內容,並避免出現兒童可辨識的面孔。</div>'
+   +'<div class="bar nosp"><span class="rem">'+(SEC.loading?'載入中…':SEC.items?'共 '+SEC.items.length+' 則':'')+'</span><span class="actions"><button class="btn sm" data-a="secRefresh">↻ 重新載入</button><button class="btn pri sm" data-a="secNew">＋ 新增小驚喜</button></span></div>';
+  if(SEC.err)h+='<div class="note bad" role="alert">'+esc(SEC.err)+'(若顯示「雲端程式尚未更新」,請把 fun_addon.gs 貼進 Apps Script 並重新部署)</div>';
+  if(!SEC.items)return h;
+  if(!SEC.items.length)return h+'<div class="empty"><b>還沒有設定小驚喜</b>登入畫面目前使用系統內建的備用內容。按「新增小驚喜」建立第一則。</div>';
+  return h+'<div class="tw"><table><thead><tr><th>預覽</th><th>內容</th><th>到期日</th><th>狀態</th><th></th></tr></thead><tbody>'+SEC.items.map(function(x){
+    var exp=x.until&&td>x.until,st=x.on===false?'<span class="pill draft">已停用</span>':exp?'<span class="pill bad">已到期</span>':'<span class="pill run">顯示中</span>';
+    return'<tr><td style="width:6rem">'+(SEC.imgs[x.id]?'<img class="thumb" src="'+esc(SEC.imgs[x.id])+'" alt="">':x.hasImg?'<span class="rem">載入中…</span>':'<span style="font-size:2rem">'+esc(x.emoji||'🌱')+'</span>')+'</td><td><b>'+esc(x.title||'(無標題)')+'</b><div class="rem rest">'+esc(String(x.text||'').slice(0,120))+'</div></td><td>'+esc(x.until||'—')+'</td><td>'+st+'</td><td class="act"><button class="btn sm" data-a="secEdit" data-id="'+esc(x.id)+'">編輯</button> <button class="btn sm" data-a="secToggle" data-id="'+esc(x.id)+'">'+(x.on===false?'啟用':'停用')+'</button> <button class="btn sm bad" data-a="secDel" data-id="'+esc(x.id)+'">刪除</button></td></tr>'}).join('')+'</tbody></table></div>'}
 var SV={rsel:{},rbusy:false,rmsg:'',rerr:'',sub:'poa',fy:'',center:'',owner:'',st:'',warn:false,mon:'',mp:'',mo:'',ms:'',mq:'',mph:false,sel:{},rep:false,phRun:false,phDone:0,phTot:0,phErr:''};
 function supOn(){return!!(window.__isSup&&window.__isSup())}
 var POAON=false; /* 年度 POA 只在督導系統內有效:督導自己建置的 POA(自己的資料) + 全中心社工的方案/預算/核銷(TS) 合成一份唯讀+可寫的視圖 */
@@ -2136,9 +2193,9 @@ function supView(){
     return h+(TM.err?'<div class="note bad">'+esc(TM.err)+'</div><button class="btn" data-a="supRefresh">再試一次</button>':'<div class="note info" role="status">正在從 Google 雲端整合所有社工的資料,人數與照片多時可能需要十幾秒…</div>');
   }
   if(TM.err)h+='<div class="note bad">'+esc(TM.err)+'(目前顯示的是上一次載入的資料)</div>';
-  var tabs=[['poa','年度 POA'],['dash','中心總覽'],['ana','數據分析'],['mon','月度場次與照片'],['rpt','成果報告下載']];
-  h+='<div class="tabs nosp" role="tablist">'+tabs.map(function(t){return'<button role="tab" data-a="supsub" data-v="'+t[0]+'" aria-selected="'+(SV.sub===t[0])+'">'+t[1]+'</button>'}).join('')+'</div>';
-  return h+withTeam(function(){return SV.sub==='ana'?supAna():SV.sub==='mon'?supMon():SV.sub==='poa'?supPoa():SV.sub==='rpt'?supRpt():supDash()});
+  var tabs=[['poa','年度 POA'],['dash','中心總覽'],['ana','數據分析'],['mon','月度場次與照片'],['rpt','成果報告下載'],['sec','秘']];
+  h+='<div class="tabs nosp" role="tablist">'+tabs.map(function(t){return'<button role="tab" data-a="supsub" data-v="'+t[0]+'" aria-selected="'+(SV.sub===t[0])+'"'+(t[0]==='sec'?' title="登入畫面小驚喜設定" style="font-size:.72rem;padding:.3rem .55rem;opacity:.65"':'')+'>'+t[1]+'</button>'}).join('')+'</div>';
+  return h+withTeam(function(){return SV.sub==='ana'?supAna():SV.sub==='mon'?supMon():SV.sub==='poa'?supPoa():SV.sub==='rpt'?supRpt():SV.sub==='sec'?supSec():supDash()});
 }
 function supFilterBar(noWarn){
   var fy={},ce={},ow={};TS.projects.forEach(function(p){fy[p.fy||'FY26']=1;ce[p.center||'']=1;ow[p.owner]=1});
@@ -2426,7 +2483,12 @@ document.addEventListener('change',function(e){
 });
 document.addEventListener('input',function(e){var t=e.target;if(t&&t.hasAttribute&&t.hasAttribute('data-sq')){SV.mq=t.value;clearTimeout(SV._qt);SV._qt=setTimeout(function(){sched();setTimeout(function(){var i=document.querySelector('[data-sq]');if(i){i.focus();try{i.setSelectionRange(i.value.length,i.value.length)}catch(x){}}},0)},350)}});
 Object.assign(A,{
-  supsub:function(d){SV.sub=d.v;sched()},
+  supsub:function(d){SV.sub=d.v;if(d.v==='sec'&&!SEC.items)secLoad();sched()},
+  secNew:function(){openForm('funitem',null,null)},
+  secEdit:function(d){var it=(SEC.items||[]).filter(function(x){return x.id===d.id})[0];if(it)openForm('funitem',null,Object.assign({},it,{photo:SEC.imgs[it.id]||'',on:it.on===false?'0':'1'}))},
+  secToggle:async function(d){var it=(SEC.items||[]).filter(function(x){return x.id===d.id})[0];if(!it)return;try{await window.__fun.save(Object.assign({},it,{on:it.on===false}));toast(it.on===false?'已設為顯示':'已停用');SEC.items=null;secLoad()}catch(e){toast(String(e&&e.message||e))}},
+  secDel:async function(d){var ok=await ask('刪除這則小驚喜(含照片)?無法復原。','刪除');if(!ok)return;try{await window.__fun.del(d.id);toast('已刪除');SEC.items=null;secLoad()}catch(e){toast(String(e&&e.message||e))}},
+  secRefresh:function(){SEC.items=null;SEC.err='';secLoad()},
   supRptAll:function(){supRptRows().forEach(function(r){SV.rsel[r.p.id]=true});sched()},
   supRptFull:function(){SV.rsel={};supRptRows().forEach(function(r){if(r.g.pct>=100)SV.rsel[r.p.id]=true});sched()},
   supRptClosed:function(){SV.rsel={};supRptRows().forEach(function(r){if(pst(r.p)!=='執行中')SV.rsel[r.p.id]=true});sched()},
