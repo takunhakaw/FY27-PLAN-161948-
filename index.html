@@ -253,7 +253,7 @@ var CFG={GAS_URL:'https://script.google.com/macros/s/AKfycbzQkkhyyrB_0whPdsYDr1P
    date:公告日期;title:標題(可省略);text:內文(可換行 \n);until:到這一天(含)後自動不顯示(可省略)。
    清單是空的([])時,登入畫面不會出現公告區塊。 */
 var NOTICES=[
-  {date:'2026-11-12',title:'系統公告',text:'成果報告可由督導於「督導系統 → 成果報告下載」單份或批量下載。'}
+  {date:'2026-11-12',title:'系統公告',text:'成果報告可由督導於「督導系統 → 成果報告下載」單份或批量下載。\n年度以 10 月至隔年 9 月計:FY26 = 2025/10–2026/09;FY27 = 2026/10–2027/09。'}
 ];
 function noticeHtml(){
   var td=new Date(),t=td.getFullYear()+'-'+p2(td.getMonth()+1)+'-'+p2(td.getDate());
@@ -883,7 +883,7 @@ function projectCard(p){
 function homeView(list,title,sub,showNew){
   var cards=list.length?'<div class="cards">'+list.map(projectCard).join('')+'</div>'
    :'<div class="empty"><b>'+(showNew?'還沒有方案':'目前沒有項目')+'</b>'+(showNew?'建立第一個方案後,預算、場次、核銷與成果報告都會在方案內完成。':'')+(showNew&&canWrite?'<div class="row"><button class="btn pri" data-a="newProject">新增方案</button>'+impBtn('project','')+'<button class="btn" data-a="sample">載入範例方案</button></div>':'')+'</div>';
-  var pend=showNew?mpAll().pending:[],ban=pend.length?'<div class="note warn" role="status"><b>督導已派發 '+pend.length+' 個方案給你,尚未建立:</b><div style="display:grid;gap:.3rem;margin-top:.4rem">'+pend.map(function(a){return'<div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center"><span>'+esc(a.code)+' '+esc(a.name||'')+'(POA 額度 $'+money(a.amount)+(a.noplan?',無須計畫書':'')+')</span>'+(canWrite?'<button class="btn sm" data-a="mpCreate" data-i="'+MP.list.indexOf(a)+'">建立這個方案</button>':'')+'</div>'}).join('')+'</div></div>':'';
+  var pend=showNew?mpAll().pending:[],ban=pend.length?'<div class="note warn" role="status"><b>督導已派發 '+pend.length+' 個方案給你,尚未建立:</b><div style="display:grid;gap:.3rem;margin-top:.4rem">'+pend.map(function(a){return'<div style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center"><span>'+esc(a.code)+' '+esc(a.name||'')+'(POA 額度 $'+money(a.amount)+(a.noplan?',無須計畫書':'')+')</span>'+(canWrite?'<button class="btn sm" data-a="mpCreate" data-i="'+MP.list.indexOf(a)+'">建立這個方案</button><button class="btn sm" data-a="mpImport" data-i="'+MP.list.indexOf(a)+'">一鍵匯入 Excel</button>':'')+'</div>'}).join('')+'</div></div>':'';
   if(showNew){var hh=MP.at?new Date(MP.at):null,tm=hh?String(hh.getHours()).padStart(2,'0')+':'+String(hh.getMinutes()).padStart(2,'0'):'';
     ban+=MP.err?'<div class="note bad" role="alert">無法取得督導派發資料:'+esc(MP.err)+' <button class="btn sm" data-a="mpRefresh">重新查詢</button></div>':'<div class="rem" style="margin-bottom:.6rem">督導派發:'+(MP.loading?'查詢中…':MP.list.length?'共派發 '+MP.list.length+' 個方案給你':'目前沒有派發給你的項目')+(tm?'(查詢於 '+tm+')':'')+' <button class="btn sm" data-a="mpRefresh"'+(MP.loading?' disabled':'')+'>重新查詢</button></div>'}
   return'<h1>'+esc(title)+'</h1><p class="sub">'+esc(sub)+'</p>'+ban+(list.length&&showNew&&canWrite?'<div class="bar"><span></span><button class="btn pri" data-a="newProject">新增方案</button>'+impBtn('project','')+'</div>':'')+cards;
@@ -947,16 +947,16 @@ function partsSorted(pid){return kids('participants',pid).sort(function(a,b){ret
 function partStats(pid){var evs={},last={},tot={};kids('attendances',pid).forEach(function(a){tot[a.eventId]=1;var e=S.events.get(a.eventId);(a.roster||[]).forEach(function(cd){(evs[cd]=evs[cd]||{})[a.eventId]=1;if(e&&e.date&&(!last[cd]||e.date>last[cd]))last[cd]=e.date})});return{evs:evs,last:last,N:Object.keys(tot).length}}
 function phU(x){return typeof x==='string'?x:(x&&x.u)||''}
 function phC(x){return typeof x==='string'?'':(x&&x.c)||''}
-function evPhotoStrip(e){var ph=e.photos||[];if(!ph.length&&!canWrite)return'';return'<div class="chips" style="align-items:center">'+ph.slice(0,6).map(function(u){return'<img class="thumb" src="'+esc(phU(u))+'" alt="'+esc(phC(u)||'活動照片')+'" title="'+esc(phC(u))+'">'}).join('')+(ph.length>6?'<span class="rem">…共 '+ph.length+' 張</span>':'')+(canWrite?'<button class="btn sm" data-a="evPhotos" data-id="'+e.id+'">📷 照片('+ph.length+')上傳/刪除</button>':'')+'</div>'}
+function evPhotoStrip(e){var ph=e.photos||[];if(!ph.length&&!canWrite&&!e.noPhoto)return'';return'<div class="chips" style="align-items:center">'+ph.slice(0,6).map(function(u){return'<img class="thumb" src="'+esc(phU(u))+'" alt="'+esc(phC(u)||'活動照片')+'" title="'+esc(phC(u))+'">'}).join('')+(ph.length>6?'<span class="rem">…共 '+ph.length+' 張</span>':'')+(e.noPhoto&&!ph.length?'<span class="pill info">無須上傳照片</span>':'')+(canWrite?'<button class="btn sm" data-a="evPhotos" data-id="'+e.id+'">📷 照片('+ph.length+')上傳/刪除</button>':'')+'</div>'}
 function evPhotosDraw(){var s0=window.__ph,e=S.events.get(s0.id)||{};
-  document.getElementById('layer').innerHTML='<div class="ov"><div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="mt"><header id="mt">活動照片:'+esc(e.name||'')+'('+esc(evDate(e))+')</header><div style="padding:1rem 1.1rem;display:grid;gap:.8rem"><div class="note info" style="margin:0">上傳的照片會自動縮小,並依活動日期歸入成果報告「9. 相片及附件」。照片屬個人資料,請先取得同意;以側面照為主。</div><div class="actions"><input type="file" accept="image/*" multiple data-phfile aria-label="選擇照片(可多選)"><span class="rem">也可以直接按 Ctrl+V 貼上截圖</span></div><div id="phmsg" class="rem" role="status"></div><div class="phgrid">'+(s0.list.length?s0.list.map(function(u,i){return'<figure><img src="'+esc(phU(u))+'" alt="活動照片 '+(i+1)+'"><input type="text" data-phcap="'+i+'" value="'+esc(phC(u))+'" placeholder="照片說明(選填)" aria-label="第 '+(i+1)+' 張照片說明" style="width:100%"><button type="button" class="btn sm bad" data-a="evPhotoDel" data-i="'+i+'">刪除</button></figure>'}).join(''):'<p class="hint">尚未上傳照片</p>')+'</div><div class="foot"><button type="button" class="btn pri" data-a="mclose">完成</button></div></div></div></div>';modalOpen=true}
+  document.getElementById('layer').innerHTML='<div class="ov"><div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="mt"><header id="mt">活動照片:'+esc(e.name||'')+'('+esc(evDate(e))+')</header><div style="padding:1rem 1.1rem;display:grid;gap:.8rem"><label style="display:flex;gap:.5rem;align-items:flex-start;margin:0"><input type="checkbox" data-nophoto'+(e.noPhoto?' checked':'')+' style="margin-top:.25rem"><span><b>本場次無須上傳照片</b>(同一方案場次很多時,成果報告不必每場都放照片;勾選後督導系統不會因缺照片而警示。若之後上傳照片,會自動取消此勾選)</span></label><div class="note info" style="margin:0">上傳的照片會自動縮小,並依活動日期歸入成果報告「9. 相片及附件」。照片屬個人資料,請先取得同意;以側面照為主。</div><div class="actions"><input type="file" accept="image/*" multiple data-phfile aria-label="選擇照片(可多選)"><span class="rem">也可以直接按 Ctrl+V 貼上截圖</span></div><div id="phmsg" class="rem" role="status"></div><div class="phgrid">'+(s0.list.length?s0.list.map(function(u,i){return'<figure><img src="'+esc(phU(u))+'" alt="活動照片 '+(i+1)+'"><input type="text" data-phcap="'+i+'" value="'+esc(phC(u))+'" placeholder="照片說明(選填)" aria-label="第 '+(i+1)+' 張照片說明" style="width:100%"><button type="button" class="btn sm bad" data-a="evPhotoDel" data-i="'+i+'">刪除</button></figure>'}).join(''):'<p class="hint">尚未上傳照片</p>')+'</div><div class="foot"><button type="button" class="btn pri" data-a="mclose">完成</button></div></div></div></div>';modalOpen=true}
 function openEvPhotos(id){var e=S.events.get(id);if(!e)return;window.__ph={id:id,list:(e.photos||[]).map(function(x){return{u:phU(x),c:phC(x)}})};evPhotosDraw();
   if(pasteH)document.removeEventListener('paste',pasteH);
   pasteH=function(ev){var its=[].slice.call((ev.clipboardData&&ev.clipboardData.items)||[]).filter(function(x){return x.type.indexOf('image/')===0});if(its.length){ev.preventDefault();evPhotoAdd(its.map(function(x){return x.getAsFile()}))}};document.addEventListener('paste',pasteH)}
 async function evPhotoAdd(files){var s0=window.__ph;if(!s0)return;files=files.filter(Boolean);var bad=0,n=0;
   for(var i=0;i<files.length;i++){var msg=document.getElementById('phmsg');if(msg)msg.textContent='處理中… '+(i+1)+'/'+files.length;
     try{s0.list.push({u:await shrink(files[i],1000,220000),c:''});n++}catch(e){bad++}}
-  var e0=S.events.get(s0.id),auto=n>0&&e0&&e0.status!=='已辦理',up={photos:s0.list};if(n>0)up.status='已辦理';
+  var e0=S.events.get(s0.id),auto=n>0&&e0&&e0.status!=='已辦理',up={photos:s0.list};if(n>0){up.status='已辦理';up.noPhoto=false}
   try{await saveDoc('events',s0.id,up)}catch(e){toast('照片儲存失敗');return}
   if(auto)toast('已上傳照片,這個場次自動標示為「已辦理」');
   evPhotosDraw();var m2=document.getElementById('phmsg');if(m2)m2.textContent=(n?'已新增 '+n+' 張並儲存。':'')+(bad?bad+' 個檔案無法讀取(請選擇圖片檔)。':'')}
@@ -1096,6 +1096,7 @@ function reportBody(p,c){
     var cap=function(e){return'時間:'+esc(evDate(e)+' '+(e.start||''))+'<br>地點:'+esc(e.place||p.place||'')+'<br>內容:'+esc(e.name)};
     var body;
     if(items.length){var rws=[];for(var i=0;i<items.length;i+=2){var cs=[items[i],items[i+1]].map(function(x){return x?'<td style="width:50%;text-align:center"><img src="'+esc(x.u)+'" width="280" alt="活動照片"><div style="text-align:left;font-size:9.5pt">'+(x.c?'<b>'+esc(x.c)+'</b><br>':'')+'中心:'+co+'<br>'+cap(x.e)+'</div></td>':'<td style="width:50%">&nbsp;</td>'}).join('');rws.push('<tr>'+cs+'</tr>')}body=rws.join('')}
+    else if(g.list.every(function(e){return e.noPhoto}))body='<tr><td colspan="2">(本月場次皆設定為無須上傳照片)</td></tr>';
     else body='<tr><td style="width:62%;height:120pt">(本月尚未上傳照片,可自行貼上)</td><td>中心:'+co+'<br>'+cap(g.list[0])+'</td></tr>';
     return'<p style="margin-top:.6rem"><b>'+esc(ymLabel(g.key))+'</b>(共 '+g.list.length+' 場、'+items.length+' 張照片)</p><table class="ph" style="margin-bottom:.5rem"><tbody>'+body+'</tbody></table>'}).join('')||'<p>(尚無活動場次)</p>';
   h+='<h4>10. 問卷分析</h4><p>'+esc(p.survey||'')+'</p>';
@@ -1514,9 +1515,9 @@ function conv(col,raw){
   return{v:raw};
 }
 var IMPX={
-  project:{check:function(d,ctx){var pe=projDateFix(d);if(pe)return pe;if(ctx.mode==='into'){var cp=S.projects.get(ctx.pid);if(d.code&&cp&&d.code!==cp.code)return'事工編碼「'+d.code+'」與本方案('+cp.code+')不同';return}if(Array.from(S.projects.values()).some(function(p){return p.code===d.code})||ctx.seen['c:'+d.code])return'事工編碼「'+d.code+'」已存在,請進入該方案後再匯入';ctx.seen['c:'+d.code]=1}},
+  project:{check:function(d,ctx){if(ctx.disp){d.fy=ctx.disp.fy||d.fy;d.center=ctx.disp.center||d.center;d.code=ctx.disp.code}var pe=projDateFix(d);if(pe)return pe;if(ctx.disp)return;if(ctx.mode==='into'){var cp=S.projects.get(ctx.pid);if(d.code&&cp&&d.code!==cp.code)return'事工編碼「'+d.code+'」與本方案('+cp.code+')不同';return}if(Array.from(S.projects.values()).some(function(p){return p.code===d.code})||ctx.seen['c:'+d.code])return'事工編碼「'+d.code+'」已存在,請進入該方案後再匯入';ctx.seen['c:'+d.code]=1}},
   audience:{check:function(d,ctx){if(kids('audiences',ctx.pid).some(function(a){return a.kind===d.kind})||ctx.seen['k:'+d.kind])return'「'+d.kind+'」已經有資料,請直接編輯';ctx.seen['k:'+d.kind]=1;if(d.expTimes==null)d.expTimes=d.expPeople||0}},
-  budget:{check:function(d,ctx){d.cat=catNorm(d.cat);d.total=Math.round((d.price||0)*(d.qty||0)*100)/100;if(ctx.mode==='into'&&ctx.pid){var p=S.projects.get(ctx.pid),ep=effPoa(p);if(ep&&!noPlanOf(p)){if(ctx.bt==null)ctx.bt=sum(kids('budgets',ctx.pid),'total');ctx.bt+=d.total;if(ctx.bt>ep.amount+0.005)return'累計超過督導派發的 POA 額度 $'+money(ep.amount)}}},warn:function(d){return!d.cat?'未填經費類別(仍會匯入,歸入「未分類」,請事後編輯)':catOk(d.cat)?'':'經費類別「'+d.cat+'」不在公司規定的 17 項內(仍會匯入,請事後編輯改選)'}},
+  budget:{check:function(d,ctx){d.cat=catNorm(d.cat);d.total=Math.round((d.price||0)*(d.qty||0)*100)/100;if(ctx.disp){if(!ctx.disp.noplan){ctx.bt=(ctx.bt||0)+d.total;if(ctx.bt>ctx.disp.amount+0.005)return'累計超過督導派發的 POA 額度 $'+money(ctx.disp.amount)}}else if(ctx.mode==='into'&&ctx.pid){var p=S.projects.get(ctx.pid),ep=effPoa(p);if(ep&&!noPlanOf(p)){if(ctx.bt==null)ctx.bt=sum(kids('budgets',ctx.pid),'total');ctx.bt+=d.total;if(ctx.bt>ep.amount+0.005)return'累計超過督導派發的 POA 額度 $'+money(ep.amount)}}},warn:function(d){return!d.cat?'未填經費類別(仍會匯入,歸入「未分類」,請事後編輯)':catOk(d.cat)?'':'經費類別「'+d.cat+'」不在公司規定的 17 項內(仍會匯入,請事後編輯改選)'}},
   event:{check:function(d,ctx){if(d.endDate&&d.endDate<d.date)return'結束日期不能早於開始日期';if(d.status!=='已辦理'&&d.status!=='取消')d.status='未辦理';if(!d.place){var p=S.projects.get(ctx.pid);d.place=(p&&p.place)||''}}},
   objective:{}, participant:{check:function(d,ctx){d.code=String(d.code).trim().toUpperCase();var k=d.code;if(kids('participants',ctx.pid).some(function(x){return String(x.code).toUpperCase()===k})||ctx.seen['p:'+k])return'編號「'+k+'」已在名冊中';ctx.seen['p:'+k]=1}}
 };
@@ -1620,7 +1621,7 @@ var BOOK=[
 function cleanLabel(h){return String(h==null?'':h).replace(/[（(][^）)]*[）)]/g,'').replace(/[*＊\s ]/g,'')}
 function nonEmptyRow(r){return r.some(function(c){return String(c==null?'':c).trim()!==''})}
 function analyzeRows(key,rows,ctx){
-  var sp=IMP[key],into=ctx.mode==='into'&&key==='project';rows=rows.filter(nonEmptyRow);
+  var sp=IMP[key],into=(ctx.mode==='into'||!!ctx.disp)&&key==='project';rows=rows.filter(nonEmptyRow);
   if(rows.length<2)return{rows:[],ignored:[],empty:true};
   var head=rows[0].map(cleanLabel),idx={},missing=[],ignored=[];
   sp.cols.forEach(function(c){var i=head.indexOf(cleanLabel(c.h));if(i<0)i=head.indexOf(c.k);if(i>=0)idx[c.k]=i;else if(c.req&&!into)missing.push(c.h)});
@@ -1634,8 +1635,8 @@ function analyzeRows(key,rows,ctx){
     out.push({n:n+2,d:d,err:errs.join(';'),warn:wn})});
   return{rows:out,ignored:ignored};
 }
-function bookAnalyze(sheets,mode){
-  var ctx={pid:mode==='into'?V.pid:null,mode:mode,seen:{}},parts=[];
+function bookAnalyze(sheets,mode,disp){
+  var ctx={pid:mode==='into'?V.pid:null,mode:mode,seen:{},disp:disp||null},parts=[];
   BOOK.forEach(function(b){
     var sh=sheets.filter(function(s){return b.names.indexOf(String(s.name).trim())>=0})[0];
     if(!sh){parts.push({b:b,missing:true,rows:[]});return}
@@ -1675,7 +1676,7 @@ async function bookFile(f){
   var er=document.getElementById('imperr'),pv=document.getElementById('impprev'),go=document.getElementById('impgo'),mode=window.__imp.mode;er.textContent='';go.disabled=true;pv.innerHTML='';
   if(!/\.xlsx?m?$/i.test(f.name)||/\.xls$/i.test(f.name)){er.textContent='請選擇 .xlsx 檔(舊版 .xls 請先另存為 .xlsx)。';return}
   var sheets;try{sheets=await readXlsx(await f.arrayBuffer())}catch(e){er.textContent='無法讀取這個檔案:'+(e&&e.message||e);return}
-  var parts=bookAnalyze(sheets,mode),basic=parts[0],okN=0,bad=0,trs=[],errs=[],warns=[];
+  var parts=bookAnalyze(sheets,mode,window.__imp.disp),basic=parts[0],okN=0,bad=0,trs=[],errs=[],warns=[];
   window.__imp.parts=parts;
   parts.forEach(function(p){
     var ok=p.rows.filter(function(r){return!r.err}).length,nb=p.rows.length-ok,st;
@@ -1687,7 +1688,9 @@ async function bookFile(f){
     p.rows.forEach(function(r){if(r.err)errs.push(p.b.label+(p.b.key==='basic'?'':' 第 '+r.n+' 列')+':'+r.err);else if(r.warn)warns.push(p.b.label+' 第 '+r.n+' 列:'+r.warn)});
     trs.push('<tr><td>'+esc(p.b.label)+'</td><td>'+st+'</td><td>'+esc(p.b.key==='basic'&&p.rows[0]&&!p.rows[0].err?((p.rows[0].d.code||'')+' '+(p.rows[0].d.name||'')):'')+'</td></tr>')});
   var blocked=false;
-  if(mode==='new'){var bp=basic;if(bp.missing||bp.fatal||!bp.rows.length||bp.rows[0].err){blocked=true;er.textContent='要新增方案,需要「基本資料與策略」頁籤且內容正確。'+(bp.missing?'(找不到此頁籤)':'')}}
+  var dp=window.__imp.disp;
+  if(dp){var bq=basic.rows&&basic.rows[0];if(bq&&bq.err){blocked=true;er.textContent='「基本資料與策略」頁籤有錯誤:'+bq.err}if(bq&&!bq.err&&bq.d.code&&bq.d.code!==dp.code)warns.push('Excel 內的事工編碼「'+bq.d.code+'」與督導派發的「'+dp.code+'」不同,將以派發的編碼、中心與年度為準')}
+  else if(mode==='new'){var bp=basic;if(bp.missing||bp.fatal||!bp.rows.length||bp.rows[0].err){blocked=true;er.textContent='要新增方案,需要「基本資料與策略」頁籤且內容正確。'+(bp.missing?'(找不到此頁籤)':'')}}
   pv.innerHTML='<div class="note '+(bad?'warn':'ok')+'" style="margin:0 0 .5rem">共可匯入 <b>'+okN+'</b> 列'+(bad?',有問題 <b>'+bad+'</b>(有問題的列會略過,其餘照常匯入)':'')+'。</div><div class="tw"><table><thead><tr><th>頁籤</th><th>檢查結果</th><th>方案</th></tr></thead><tbody>'+trs.join('')+'</tbody></table></div>'
    +(warns.length?'<div class="note warn" style="margin:.5rem 0 0"><b>提醒(不影響匯入,資料仍會帶入):</b><br>'+warns.slice(0,30).map(esc).join('<br>')+(warns.length>30?'<br>…另有 '+(warns.length-30)+' 項':'')+'</div>':'')
    +(errs.length?'<div class="note warn" style="margin:.5rem 0 0"><b>需要修正的項目(這些列會略過):</b><br>'+errs.slice(0,30).map(esc).join('<br>')+(errs.length>30?'<br>…另有 '+(errs.length-30)+' 項':'')+'</div>':'');
@@ -1698,7 +1701,7 @@ async function bookGo(){
   go.disabled=true;
   try{
     var bp=st.parts[0],bd=(bp&&bp.rows.length&&!bp.rows[0].err)?bp.rows[0].d:null;
-    if(mode==='new'){if(!bd)throw new Error('缺少基本資料');var d0=Object.assign({},bd);d0.owner=uid;d0.status='執行中';d0.approvals={};if(!d0.fy)d0.fy=curFY();pid=await saveDoc('projects',null,d0);done++}
+    if(mode==='new'){if(!bd&&!st.disp)throw new Error('缺少基本資料');var d0=Object.assign({},bd||{});if(st.disp){var da=st.disp,dm=MONTHS.filter(function(m){return da.months&&da.months[m]})[0]||MONTHS[0];d0=Object.assign({},d0,{code:da.code,center:da.center||d0.center,fy:da.fy||d0.fy,name:d0.name||da.name||da.code,month:d0.month||dm,noPlan:da.noplan?'1':(d0.noPlan||'')})}d0.owner=uid;d0.status='執行中';d0.approvals={};if(!d0.fy)d0.fy=curFY();pid=await saveDoc('projects',null,d0);done++}
     else if(bd){var u={};Object.keys(bd).forEach(function(k){var v=bd[k];if(v===''||v==null||(Array.isArray(v)&&!v.length))return;u[k]=v});if(Object.keys(u).length){await saveDoc('projects',pid,u);done++}}
     var total=0;st.parts.forEach(function(p){if(p.b.key!=='basic')total+=p.rows.filter(function(r){return!r.err}).length});
     for(var pi=1;pi<st.parts.length;pi++){
@@ -1961,6 +1964,7 @@ var A={
  backup:async function(){try{var o=await window.__localdb.exportAll(),d=new Date(),n='方案系統備份_'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'.json';await downloads.save({filename:n,data:JSON.stringify(o)});toast('已下載備份檔(含 '+o.docs.length+' 筆資料),請存放在安全的位置')}catch(e){toast('備份失敗')}},
  restore:function(){var inp=document.createElement('input');inp.type='file';inp.accept='.json,application/json';inp.onchange=async function(){var f=inp.files[0];if(!f)return;try{var o=JSON.parse(await f.text());if(o.app!=='fangan'||!Array.isArray(o.docs))throw 0;var r=await ask('還原備份檔(含 '+o.docs.length+' 筆資料,備份時間 '+String(o.at||'').slice(0,10)+')?相同的資料會被備份檔內容覆蓋,其餘資料保留(可用來合併同事的備份)。','還原');if(!r)return;var mine=await ask('這份備份是你自己的資料嗎?換電腦或重新安裝後還原自己的備份,請按「是,我自己的」;若是同事交給你的備份,請按「取消」,會以同事的名義合併進來。','是,我自己的');var n=await window.__localdb.importAll(o,!!mine);toast('已還原 '+n+' 筆資料')}catch(e){toast('這不是有效的備份檔')}};inp.click()},
  newProject:function(){openForm('project',null,null)},
+ mpImport:function(d){var a=MP.list[Number(d.i)];if(!a)return;openBook('new');window.__imp.disp=a;var n=document.querySelector('#layer .note.info');if(n)n.insertAdjacentHTML('afterend','<div class="note ok" style="margin:0">匯入到督導派發的方案:<b>'+esc(a.code)+' '+esc(a.name||'')+'</b>(POA 額度 $'+money(a.amount)+(a.noplan?',無須計畫書':'')+')。事工編碼、中心、年度以派發為準;「基本資料與策略」頁籤可省略,預算合計不能超過額度。</div>')},
  mpRefresh:function(){MP.at=0;MP.err='';mpLoad();sched()},
  mpCreate:function(d){var a=MP.list[Number(d.i)];if(!a)return;var m1=MONTHS.filter(function(m){return a.months&&a.months[m]})[0]||MONTHS[0];openForm('project',null,null,{code:a.code,name:a.name||'',center:a.center||'',fy:a.fy||curFY(),month:m1,noPlan:a.noplan?'1':''})},
  add:function(d){var extra=d.event?{eventId:d.event}:null;openForm(d.e,V.pid,null,extra)},
@@ -2042,6 +2046,7 @@ document.addEventListener('change',async function(e){
   var ds=e.target.dataset||{};
   if(ds.phcap!==undefined){var ps=window.__ph;if(ps&&ps.list[Number(ds.phcap)]){ps.list[Number(ds.phcap)].c=e.target.value.trim();try{await saveDoc('events',ps.id,{photos:ps.list});var pm=document.getElementById('phmsg');if(pm)pm.textContent='說明已儲存'}catch(x){toast('儲存失敗')}}return}
   if(ds.noplan!==undefined){var npl=S.poaPlans.get(V.planId);if(npl){var nm0=Object.assign({},npl.noplan||{});if(e.target.value)nm0[ds.noplan]=true;else delete nm0[ds.noplan];try{await saveDoc('poaPlans',npl.id,{noplan:nm0});toast(e.target.value?'已標記為「該案無須計畫書」':'已改為一般方案')}catch(x){toast('儲存失敗')}}return}
+  if(ds.nophoto!==undefined){var pn=window.__ph;if(pn){try{await saveDoc('events',pn.id,{noPhoto:!!e.target.checked});var pm2=document.getElementById('phmsg');if(pm2)pm2.textContent=e.target.checked?'已設定:本場次無須上傳照片':'已取消「無須上傳照片」'}catch(x){toast('儲存失敗')}}return}
   if(ds.phfile!==undefined){await evPhotoAdd([].slice.call(e.target.files));return}
   if(ds.poafile!==undefined){var pf=e.target.files[0];if(pf)await poaFile(pf);e.target.value='';return}
   if(ds.bookfile!==undefined){var f=e.target.files[0];if(f)await bookFile(f);return}
@@ -2096,7 +2101,7 @@ function supFlags(p,c){
   c.EV.forEach(function(e){var st=evSt(e);
     if(st==='未辦理'&&(e.endDate||e.date||'9')<td)late++;
     if(st==='已辦理'&&!String(e.summary||'').trim())nos++;
-    if(st==='已辦理'&&!(e.phN>0))nop++});
+    if(st==='已辦理'&&!(e.phN>0)&&!e.noPhoto)nop++});
   if(late)f.push('過期未標記辦理 '+late+' 場');
   if(nos)f.push('已辦理缺執行概況 '+nos+' 場');
   if(nop)f.push('已辦理無照片 '+nop+' 場');
@@ -2284,7 +2289,7 @@ function supMon(){
    +(list.length?'<div class="evlist">'+supGroups(list).map(function(g){var p=TS.projects.get(g.id)||{},k=g.list.filter(function(e){return SV.sel[e.id]}).length,all=k===g.list.length;
       return'<div class="evgrp"><div class="gh"><b>'+esc(p.name||'(未命名方案)')+'</b><small>'+esc((p.code?p.code+' ・ ':'')+supOwner(p)+' ・ '+g.list.length+' 場')+'</small><button class="btn sm" data-a="supSelPj" data-id="'+esc(g.id)+'">'+(all?'取消此方案':'全選此方案')+'</button></div>'
        +g.list.map(function(e){var a=att[e.id],st=evSt(e);
-        return'<label class="evpick"><input type="checkbox" data-pick value="'+esc(e.id)+'"'+(SV.sel[e.id]?' checked':'')+'><span class="d">'+esc(e.date.slice(5))+(e.endDate&&e.endDate>e.date?'~'+esc(e.endDate.slice(5)):'')+'<small>'+esc(e.start||'')+'</small></span><span class="n"><b>'+esc(e.name||'(未命名)')+'</b><small>'+esc(e.place||'')+'</small></span><span class="m"><span class="pill '+(st==='已辦理'?'run':st==='取消'?'draft':'wait')+'">'+st+'</span><small>'+(a?a.times+' 人次 ':'')+(e.phN>0?'📷'+e.phN+' ':'')+(String(e.summary||'').trim()?'':'<span style="color:var(--warn)">缺概況</span>')+'</small></span></label>'}).join('')+'</div>'}).join('')+'</div>':'<div class="empty" style="margin:0"><b>這個條件下沒有場次</b>請調整篩選條件。</div>')
+        return'<label class="evpick"><input type="checkbox" data-pick value="'+esc(e.id)+'"'+(SV.sel[e.id]?' checked':'')+'><span class="d">'+esc(e.date.slice(5))+(e.endDate&&e.endDate>e.date?'~'+esc(e.endDate.slice(5)):'')+'<small>'+esc(e.start||'')+'</small></span><span class="n"><b>'+esc(e.name||'(未命名)')+'</b><small>'+esc(e.place||'')+'</small></span><span class="m"><span class="pill '+(st==='已辦理'?'run':st==='取消'?'draft':'wait')+'">'+st+'</span><small>'+(a?a.times+' 人次 ':'')+(e.phN>0?'📷'+e.phN+' ':e.noPhoto?'無須照片 ':'')+(String(e.summary||'').trim()?'':'<span style="color:var(--warn)">缺概況</span>')+'</small></span></label>'}).join('')+'</div>'}).join('')+'</div>':'<div class="empty" style="margin:0"><b>這個條件下沒有場次</b>請調整篩選條件。</div>')
    +'</div></section>';
   if(SV.rep&&sel.length){
     h+='<div class="actions nosp" style="margin:.8rem 0"><button class="btn pri" data-a="supPrint">🖨 列印 / 存成 PDF</button><button class="btn" data-a="supDoc">⬇ 下載 Word 檔(.doc)</button><button class="btn" data-a="supRepHide">收起月報</button>'
@@ -2363,7 +2368,7 @@ function supRptProg(p,c){
   var parts=[
     {l:'場次已辦理',a:done.length,b:evs.length,miss:evs.length?(evs.length-done.length?'尚有 '+(evs.length-done.length)+' 場未辦理':''):'尚未建立場次'},
     {l:'執行概況',a:done.filter(function(e){return String(e.summary||'').trim()}).length,b:done.length,miss:''},
-    {l:'活動照片',a:done.filter(function(e){return e.phN>0}).length,b:done.length,miss:''},
+    {l:'活動照片',a:done.filter(function(e){return e.phN>0||e.noPhoto}).length,b:done.length,miss:''},
     {l:'成效評估',a:objs.filter(function(o){return String(o.result||'').trim()}).length,b:objs.length,miss:''},
     {l:'自評及期待',a:String(p.selfEval||'').trim()?1:0,b:1,miss:''}];
   var miss=[],sum=0;
