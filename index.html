@@ -557,8 +557,8 @@ function monthDate(fy,m){var n=parseInt(m,10),y=fyStart(fy)+(n>=10?0:1);return n
 function monthFull(pid,m){if(!m)return'';var d=monthDate(fyOf(pid),m);return m+'('+d.getFullYear()+'/'+String(d.getMonth()+1).padStart(2,'0')+')'}
 function isDue(c){if(!isActive(c)||MONTHS.indexOf(c.toMonth)<0)return false;return monthDate(fyOf(c.projectId),c.toMonth)<=new Date()}
 function poaBinds(center){var m={};if(!POAON)return m;S.poaPlans.forEach(function(pl){if(center&&pl.center!==center)return;var vs=versionsOf(pl.id),l=vs[vs.length-1];if(l&&l.binds)Object.keys(l.binds).forEach(function(c){if(l.binds[c])m[c]=l.binds[c]})});return m}
-function poaPrior(center){var r=[];if(!POAON)return r;S.poaPlans.forEach(function(pl){if(center&&pl.center!==center)return;var vs=versionsOf(pl.id),l=vs[vs.length-1];if(!l||!l.prior)return;Object.keys(l.prior).forEach(function(c){(l.prior[c]||[]).forEach(function(id){if(id)r.push([c,id])})})});return r}
-function poaCodeFor(p){var b=poaBinds(p.center),k=Object.keys(b);for(var i=0;i<k.length;i++)if(b[k[i]]===p.id)return k[i];var pr=poaPrior(p.center);for(var j=0;j<pr.length;j++)if(pr[j][1]===p.id)return pr[j][0];return(p.code&&b[p.code]&&b[p.code]!==p.id)?'':(p.code||'')}
+function poaPrior(center){var r=[];if(!POAON)return r;S.poaPlans.forEach(function(pl){if(center&&pl.center!==center)return;var vs=versionsOf(pl.id),l=vs[vs.length-1];if(!l||!l.prior)return;Object.keys(l.prior).forEach(function(c){(l.prior[c]||[]).forEach(function(id){if(id)r.push([c,id])})})});S.poaPlans.forEach(function(pl){if(center&&pl.center!==center)return;var vs=versionsOf(pl.id),l=vs[vs.length-1];if(!l||!l.more)return;Object.keys(l.more).forEach(function(c){(l.more[c]||[]).forEach(function(id){if(id)r.push([c,id])})})});return r}
+function poaCodeFor(p){var b=poaBinds(p.center),k=Object.keys(b);for(var i=0;i<k.length;i++)if(b[k[i]]===p.id)return k[i];var pr=poaPrior(p.center);for(var j=0;j<pr.length;j++)if(pr[j][1]===p.id)return pr[j][0];return p.code||''}
 function effPoa(p){if(!POAON)return null;var best=null,cd=poaCodeFor(p);S.poaPlans.forEach(function(pl){if(pl.center!==p.center)return;var vs=versionsOf(pl.id),l=vs[vs.length-1];if(!l)return;var t=0,f=false;(l.lines||[]).forEach(function(x){if(x.c===cd){t+=Number(x.a)||0;f=true}});if(f)best={amount:Math.round(t*100)/100,ver:l.ver,fy:pl.fy}});return best}
 function poaAmt(p){var e=effPoa(p);return e?e.amount:(Number(p.poa)||0)}
 function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
@@ -1168,12 +1168,20 @@ function poaStats(center){
 function sumMap(m){var t=0;Object.keys(m).forEach(function(k){t+=m[k]});return Math.round(t*100)/100}
 function codesOfMaps(){var c={};[].slice.call(arguments).forEach(function(m){Object.keys(m).forEach(function(k){c[k.split(SEP)[0]]=1})});return Object.keys(c).sort()}
 function mm(n){return n?money(n):'—'}
-function asgChain(v,code){return(v&&v.assign&&v.assign[code])||[]}
-function asgHtml(v,code,pr){
-  var ch=asgChain(v,code),t='';
-  if(ch.length)t=ch.map(function(a,i){return esc(a.name||'?')+(a.left?'<span class="rem">(離職/已交接'+(a.leftNote?':'+esc(a.leftNote):'')+')</span>':'')+(i>0&&a.from?'<span class="rem">(自 '+esc(a.from)+' 起)</span>':'')}).join(' → ');
-  else if(pr)t=esc(supOwner(pr))+'<span class="rem">(依綁定方案推算,尚未正式派發)</span>';
-  return t?'<br><small>承辦:'+t+'</small>':'<br><small><span class="pill wait">未派發</span></small>'}
+function asgSlots(v,code){
+  if(!v)return[];
+  if(v.slots&&v.slots[code])return v.slots[code].map(function(ch){ch=ch||[];return{chain:ch,bind:(ch.length&&ch[ch.length-1].pid)||''}});
+  if(v.assign&&v.assign[code]){var ch=v.assign[code];return[{chain:ch,bind:ch.length?ch[ch.length-1].pid||'':''}]}
+  var r=[],b=v.binds&&v.binds[code];if(b)r.push({chain:[],bind:b});((v.more&&v.more[code])||[]).forEach(function(id){r.push({chain:[],bind:id})});return r}
+function poaSlotFields(sls){var cur=sls.map(function(ch){return ch.length?ch[ch.length-1].pid:''}).filter(Boolean),pr=[];sls.forEach(function(ch){ch.slice(0,-1).forEach(function(a){if(a.pid&&pr.indexOf(a.pid)<0)pr.push(a.pid)})});return{bind:cur[0]||'',more:cur.slice(1),prior:pr}}
+function projsOfCode(code,center){var r=[];S.projects.forEach(function(x){if(x.center===center&&poaCodeFor(x)===code)r.push(x)});return r.sort(function(a,b){return String(a.name).localeCompare(String(b.name))})}
+function asgHtml(v,code){
+  var ss=asgSlots(v,code);
+  if(!ss.length)return'<br><small><span class="pill wait">未派發</span></small>';
+  return ss.map(function(sl,i){var ch=sl.chain,t,pj=sl.bind&&S.projects.get(sl.bind);
+    if(ch.length&&ch.some(function(a){return a.name}))t=ch.map(function(a,k){return esc(a.name||'?')+(a.left?'<span class="rem">(離職/已交接'+(a.leftNote?':'+esc(a.leftNote):'')+')</span>':'')+(k>0&&a.from?'<span class="rem">(自 '+esc(a.from)+' 起)</span>':'')}).join(' → ');
+    else t=pj?esc(supOwner(pj))+'<span class="rem">(依綁定方案推算)</span>':'<span class="pill wait">未派發</span>';
+    return'<br><small>'+(ss.length>1?'方案 '+(i+1)+' ':'')+'承辦:'+t+(pj?' ・ <span class="rem">'+esc(pj.name||'')+'</span>':'')+'</small>'}).join('')}
 function poaUserOpts(sel,none,cur){
   var a=Object.keys(TM.users).map(function(k){return TM.users[k]}).sort(function(x,y){return String(x.name)>String(y.name)?1:-1});
   var o='<option value="">'+none+'</option>';
@@ -1208,9 +1216,10 @@ function poaView(){
     return'<button class="ver" data-a="poaver" data-id="'+v.id+'" aria-current="'+(v.id===sel.id)+'"><b><span>v'+v.ver+' '+(v.ver?'異動':'原始')+'</span>'+(v.id===latest.id?'<span class="pill run">生效中</span>':'')+'</b><small>'+esc(v.date||'')+(v.byName?' ・ '+esc(v.byName):'')+'</small><small>合計 $'+money(v.total)+(pv?' ・ 異動 '+d+' 格':'')+'</small>'+(v.reason&&v.ver?'<small>'+esc(v.reason)+'</small>':'')+(xferText(v)?'<small>'+esc(xferText(v))+'</small>':'')+(v.approver?'<small>核定:'+esc(v.approver)+'</small>':'')+'</button>'}).join('');
   var A=cellMap(sel.lines),P=prev?cellMap(prev.lines):null;
   var codes=codesOfMaps(A,L,st.plan,st.spent);
-  var srows=codes.map(function(code){var al=0,pl=0,sp=0;MONTHS.forEach(function(m){var k=code+SEP+m;al+=L[k]||0;pl+=st.plan[k]||0;sp+=st.spent[k]||0});var pr=projByCode(code,plan.center),bound=latest.binds&&latest.binds[code];
-    var stt=!pr?'<span class="pill wait">尚未建立方案</span>':al===0?'<span class="pill bad">未登記 POA</span>':sp>al+.005?'<span class="pill bad">核銷超過登記額</span>':pl>al+.005?'<span class="pill bad">計畫書超過登記額</span>':'<span class="pill run">正常</span>';
-    return'<tr><td><b>'+esc(code)+'</b></td><td>'+esc(codeName(code,latest))+(TEAMV?asgHtml(latest,code,pr):'')+((latest.notes&&latest.notes[code])?'<br><small class="rem">備註:'+esc(latest.notes[code])+'</small>':'')+(pr?'<br><small>'+(latest.binds&&latest.binds[code]?'<span class="pill run">已綁定</span> ':'<span class="pill wait">依編碼比對</span> ')+esc(pr.name)+(pr.code!==code?'(方案編碼 '+esc(pr.code||'無')+')':'')+'</small>':'')+'</td><td class="n">'+money(al)+'</td><td class="n">'+(pr?money(pl):'—')+'</td><td class="n">'+(pr?money(al-pl):'—')+'</td><td class="n">'+money(sp)+'</td><td class="n">'+pct(sp,al)+'%</td><td>'+stt+'</td><td class="act">'+(TEAMV&&canWrite&&al>0?'<button class="btn sm" data-a="poaHandover" data-code="'+esc(code)+'">'+(asgChain(latest,code).length?'交接/換人':'派發')+'</button> ':'')+(pr?'<button class="btn sm" data-a="'+(TEAMV?'supProj':'open')+'" data-id="'+pr.id+'">'+(TEAMV?'查看方案':'開啟方案')+'</button>':'')+'</td></tr>'});
+  var srows=codes.map(function(code){var al=0,pl=0,sp=0;MONTHS.forEach(function(m){var k=code+SEP+m;al+=L[k]||0;pl+=st.plan[k]||0;sp+=st.spent[k]||0});var ps=projsOfCode(code,plan.center),sls=asgSlots(latest,code);
+    var stt=!ps.length?'<span class="pill wait">尚未建立方案</span>':al===0?'<span class="pill bad">未登記 POA</span>':sp>al+.005?'<span class="pill bad">核銷超過登記額</span>':pl>al+.005?'<span class="pill bad">計畫書超過登記額</span>':'<span class="pill run">正常</span>';
+    var btns=TEAMV&&canWrite&&al>0?sls.map(function(sl,i){return'<button class="btn sm" data-a="poaHandover" data-code="'+esc(code)+'" data-slot="'+i+'">'+(sls.length>1?'方案'+(i+1)+' ':'')+(sl.chain.length?'交接/換人':'派發')+'</button>'}).join(' ')+(sls.length<6?' <button class="btn sm" data-a="poaHandover" data-code="'+esc(code)+'" data-slot="'+sls.length+'">＋'+(sls.length?'同編碼再加方案':'派發')+'</button>':''):'';
+    return'<tr><td><b>'+esc(code)+'</b></td><td>'+esc(codeName(code,latest))+(TEAMV?asgHtml(latest,code):'')+((latest.notes&&latest.notes[code])?'<br><small class="rem">備註:'+esc(latest.notes[code])+'</small>':'')+(ps.length?'<br><small>'+(ps.length>1?'<span class="pill run">共 '+ps.length+' 個方案</span> ':(sls.length?'<span class="pill run">已綁定</span> ':'<span class="pill wait">依編碼比對</span> '))+esc(ps.map(function(x){return x.name}).join('、'))+'</small>':'')+'</td><td class="n">'+money(al)+'</td><td class="n">'+(ps.length?money(pl):'—')+'</td><td class="n">'+(ps.length?money(al-pl):'—')+'</td><td class="n">'+money(sp)+'</td><td class="n">'+pct(sp,al)+'%</td><td>'+stt+'</td><td class="act">'+btns+(ps.length?' '+ps.map(function(x){return'<button class="btn sm" data-a="'+(TEAMV?'supProj':'open')+'" data-id="'+x.id+'">'+(TEAMV?'查看':'開啟')+(ps.length>1?' '+esc(String(x.name||'').slice(0,6)):'方案')+'</button>'}).join(' '):'')+'</td></tr>'});
   var head='<th>方案</th>'+MONTHS.map(function(m){return'<th class="n">'+m+'</th>'}).join('')+'<th class="n">全年</th>';
   var colT=MONTHS.map(function(){return 0}),gt=0;
   var rows=codes.map(function(code){var rt=0;
@@ -1230,13 +1239,17 @@ function poaView(){
     +'</div></div>';
 }
 function poaBindOpts(sel,uid){var o='<option value="">(未綁定:依事工編碼比對)</option>';var ps=[];S.projects.forEach(function(p){if(window.__poaCenter&&p.center!==window.__poaCenter)return;if(uid&&p.owner!==uid)return;ps.push(p)});ps.sort(function(a,b){return String(a.code).localeCompare(String(b.code))});ps.forEach(function(p){o+='<option value="'+esc(p.id)+'"'+(p.id===sel?' selected':'')+'>'+esc('綁定:'+p.name+'('+(p.code||'無編碼')+')'+(uid?'':' ・'+supOwner(p)))+'</option>'});return o}
-function poaRow(code,name,vals,bind,ex){ex=ex||{};if(bind===undefined){var ap=code?projByCode(code,window.__poaCenter):null;bind=ap?ap.id:''}var ch=ex.chain||[],cu=ch.length?ch[ch.length-1]:null,au=cu?cu.uid:'';if(!cu&&bind&&S.projects.get(bind)){au=S.projects.get(bind).owner||''}return'<tr data-row data-chain="'+esc(JSON.stringify(ch))+'"><td><input type="text" class="pc" list="dl_poacode" placeholder="事工編碼" value="'+esc(code)+'" aria-label="事工編碼"><input type="text" class="pnm" placeholder="方案名稱" value="'+esc(name)+'" aria-label="方案名稱" style="margin-top:.2rem"><select class="pasg" aria-label="承辦社工" style="margin-top:.2rem;width:100%">'+poaUserOpts(au,'(未派發)',cu)+'</select><select class="pbind" aria-label="綁定方案" style="margin-top:.2rem;width:100%">'+poaBindOpts(bind,au)+'</select>'+(ch.length>1?'<div class="rem" style="font-size:.75rem">交接紀錄:'+esc(ch.slice(0,-1).map(function(a){return a.name}).join('、'))+'(已保留)</div>':'')+'</td>'+MONTHS.map(function(m){var v=vals[m];return'<td><input type="number" class="pn" min="0" step="any" inputmode="decimal" data-m="'+m+'" value="'+(v?v:'')+'" aria-label="'+esc(m)+'"></td>'}).join('')+'<td class="n rt">0</td><td><input type="text" class="pnote" aria-label="備註" value="'+esc(ex.note||'')+'" style="min-width:7rem"></td><td><button type="button" class="btn sm" data-a="poaDelRow" aria-label="刪除此列">×</button></td></tr>'}
+function poaSlotHtml(sl,i){
+  var ch=sl.chain||[],cu=ch.length?ch[ch.length-1]:null,au=cu?cu.uid:'',bind=sl.bind||'',pj=bind&&S.projects.get(bind);
+  if(!au&&pj&&pj.owner&&TM.users[pj.owner])au=pj.owner;
+  return'<div class="slot" data-chain="'+esc(JSON.stringify(ch))+'" style="margin-top:.25rem;padding:.25rem;border:1px dashed var(--line);border-radius:6px"><div class="rem slb" style="font-size:.75rem">方案 '+(i+1)+' <button type="button" class="btn sm" data-a="poaDelSlot" aria-label="移除此方案" style="margin-left:.3rem;padding:0 .35rem">×</button></div>'
+   +'<select class="pasg" aria-label="承辦社工" style="width:100%">'+poaUserOpts(au,'(未派發)',cu)+'</select><select class="pbind" aria-label="綁定方案" style="margin-top:.2rem;width:100%">'+poaBindOpts(bind,au)+'</select>'
+   +(ch.length>1?'<div class="rem" style="font-size:.75rem">交接紀錄:'+esc(ch.slice(0,-1).map(function(a){return a.name}).join('、'))+'(已保留)</div>':'')+'</div>'}
+function poaRow(code,name,vals,slots,ex){ex=ex||{};if(!slots){var ap=code?projByCode(code,window.__poaCenter):null;slots=[{chain:[],bind:ap?ap.id:''}]}
+  return'<tr data-row><td><input type="text" class="pc" list="dl_poacode" placeholder="事工編碼" value="'+esc(code)+'" aria-label="事工編碼"><input type="text" class="pnm" placeholder="方案名稱" value="'+esc(name)+'" aria-label="方案名稱" style="margin-top:.2rem"><div class="slots">'+slots.map(poaSlotHtml).join('')+'</div><button type="button" class="btn sm" data-a="poaAddSlot" style="margin-top:.25rem">＋ 同編碼再加一個方案</button></td>'+MONTHS.map(function(m){var v=vals[m];return'<td><input type="number" class="pn" min="0" step="any" inputmode="decimal" data-m="'+m+'" value="'+(v?v:'')+'" aria-label="'+esc(m)+'"></td>'}).join('')+'<td class="n rt">0</td><td><input type="text" class="pnote" aria-label="備註" value="'+esc(ex.note||'')+'" style="min-width:7rem"></td><td><button type="button" class="btn sm" data-a="poaDelRow" aria-label="刪除此列">×</button></td></tr>'}
 function xferOf(v){var x=(v&&v.xfer)||{};return{out:Number(x.out)||0,outTo:x.outTo||'',inn:Number(x['in'])||0,inFrom:x.inFrom||'',note:x.note||''}}
 function poaBase(plan,v){var x=xferOf(v);return Math.round(((Number(plan.total)||0)+x.inn-x.out)*100)/100}
 function xferText(v){var x=xferOf(v),a=[];if(x.out)a.push('累計轉出 $'+money(x.out)+(x.outTo?'(給 '+x.outTo+')':''));if(x.inn)a.push('累計轉入 $'+money(x.inn)+(x.inFrom?'(自 '+x.inFrom+')':''));return a.join(';')}
-function xferFields(v){var x=xferOf(v);return'<div class="note info" style="margin:0"><b>方案費用轉給其他社工(或由他人轉入)時,請填這裡。</b>填的是<b>截至此版本的累計金額</b>。調整後的年度基準 = 原始 POA − 轉出 + 轉入,全年登記合計必須等於這個基準;本人的 POA 仍然只登記自己的方案。</div>'
- +'<div class="two"><div class="fld"><label for="xout">轉出金額(累計,元)</label><input type="number" id="xout" min="0" step="any" value="'+(x.out||'')+'"></div><div class="fld"><label for="xoutto">轉給誰(社工姓名)</label><input type="text" id="xoutto" value="'+esc(x.outTo)+'"></div></div>'
- +'<div class="two"><div class="fld"><label for="xin">轉入金額(累計,元)</label><input type="number" id="xin" min="0" step="any" value="'+(x.inn||'')+'"></div><div class="fld"><label for="xinfrom">由誰轉入(社工姓名)</label><input type="text" id="xinfrom" value="'+esc(x.inFrom)+'"></div></div>'}
 function poaTarget(){var t=document.getElementById('pt'),b=t?Number(t.value)||0:(window.__poaTarget||0),o=document.getElementById('xout'),i=document.getElementById('xin');if(o||i)b+=(Number(i&&i.value)||0)-(Number(o&&o.value)||0);return Math.round(b*100)/100}
 function poaRecalc(){
   var tr=document.querySelectorAll('#pg tbody tr'),colT=MONTHS.map(function(){return 0}),gt=0;
@@ -1255,7 +1268,8 @@ function openPoaEditor(mode,plan){
   codes=codes.sort();
   var rows=codes.map(function(cd){var v={};MONTHS.forEach(function(m){v[m]=bm[cd+SEP+m]});
     if(mode==='new'){var pr=projByCode(cd,center);if(pr&&Number(pr.poa)>0)v[pr.month]=Number(pr.poa)}
-    return poaRow(cd,codeName(cd,base),v,bnd[cd]||undefined,{note:(base&&base.notes&&base.notes[cd])||'',chain:asgChain(base,cd)})}).join('');
+    var sl=asgSlots(base,cd);if(!sl.length){S.projects.forEach(function(x){if(x.center===center&&x.code===cd&&sl.length<3)sl.push({chain:[],bind:x.id})})}
+    return poaRow(cd,codeName(cd,base),v,sl.length?sl:undefined,{note:(base&&base.notes&&base.notes[cd])||''})}).join('');
   if(mode==='new'||!codes.length)rows+=poaRow('','',{});
   var title=mode==='new'?'建立年度 POA(原始版本)':mode==='edit0'?'修改目前版本(新增/調整)':'新增經費異動版本(整年度重新登記)';
   var top='';
@@ -1274,10 +1288,12 @@ function openPoaEditor(mode,plan){
    +'<div class="foot"><button type="button" class="btn" data-a="mclose">取消</button><button type="button" class="btn pri" data-a="poaSave" id="poasave">儲存'+(mode==='memo'?'為新版本':'')+'</button></div></div></div></div>';
   modalOpen=true;window.__poa={mode:mode,plan:plan};
   el.oninput=function(e){var t=e.target;inSup(function(){
-    var td=t&&t.parentElement,rf=function(sel){var as=td.querySelector('.pasg'),bs=td.querySelector('.pbind');bs.innerHTML=poaBindOpts(sel||'',as.value);bs.value=sel&&bs.querySelector('option[value="'+sel+'"]')?sel:''};
-    if(t&&t.classList&&t.classList.contains('pc')){var pr=projByCode(t.value.trim(),window.__poaCenter);var nm=td.querySelector('.pnm'),bs=td.querySelector('.pbind'),as=td.querySelector('.pasg');if(pr&&nm&&!nm.value)nm.value=pr.name;if(pr&&as&&!as.value&&pr.owner&&TM.users[pr.owner]){as.value=pr.owner;rf(pr.id)}else if(pr&&bs&&!bs.value)bs.value=pr.id}
-    if(t&&t.classList&&t.classList.contains('pasg')){var code=td.querySelector('.pc').value.trim(),m=null;if(t.value){S.projects.forEach(function(x){if(x.owner===t.value&&x.center===window.__poaCenter&&code&&x.code===code)m=x})}rf(m?m.id:'')}
-    if(t&&t.classList&&t.classList.contains('pbind')){var pj=S.projects.get(t.value),pc=td.querySelector('.pc'),pn=td.querySelector('.pnm'),as2=td.querySelector('.pasg');if(pj){if(!pc.value.trim())pc.value=pj.code||'';if(!pn.value.trim())pn.value=pj.name||'';if(!as2.value&&pj.owner&&TM.users[pj.owner])as2.value=pj.owner}}
+    if(!t||!t.classList)return;
+    var cell=t.closest('td'),sl=t.closest('.slot');
+    var rf=function(sl,sel){var as=sl.querySelector('.pasg'),bs=sl.querySelector('.pbind');bs.innerHTML=poaBindOpts(sel||'',as.value);bs.value=sel&&bs.querySelector('option[value="'+sel+'"]')?sel:''};
+    if(t.classList.contains('pc')){var pr=projByCode(t.value.trim(),window.__poaCenter),nm=cell.querySelector('.pnm'),s0=cell.querySelector('.slot');if(pr&&nm&&!nm.value)nm.value=pr.name;if(pr&&s0){var as=s0.querySelector('.pasg'),bs=s0.querySelector('.pbind');if(!as.value&&pr.owner&&TM.users[pr.owner]){as.value=pr.owner;rf(s0,pr.id)}else if(!bs.value)bs.value=pr.id}}
+    if(sl&&t.classList.contains('pasg')){var code=cell.querySelector('.pc').value.trim(),m=null;if(t.value)S.projects.forEach(function(x){if(x.owner===t.value&&x.center===window.__poaCenter&&code&&x.code===code&&!m)m=x});rf(sl,m?m.id:'')}
+    if(sl&&t.classList.contains('pbind')){var pj=S.projects.get(t.value),pc=cell.querySelector('.pc'),pn=cell.querySelector('.pnm'),as2=sl.querySelector('.pasg');if(pj){if(!pc.value.trim())pc.value=pj.code||'';if(!pn.value.trim())pn.value=pj.name||'';if(!as2.value&&pj.owner&&TM.users[pj.owner])as2.value=pj.owner}}
     poaRecalc()})};poaRecalc();
 }
 function poaTemplateSheets(){
@@ -1317,18 +1333,22 @@ async function poaFile(f){
   })}
 async function poaSave(){
   var ctx=window.__poa,mode=ctx.mode,plan=ctx.plan,err=document.getElementById('perr');err.textContent='';
-  var lines=[],seen={},names={},binds={},bseen={},notes={},asg={},prior={},msg='';
+  var lines=[],seen={},names={},binds={},bseen={},notes={},slots={},more={},prior={},msg='';
   document.querySelectorAll('#pg tbody tr').forEach(function(r){
     var c=r.querySelector('.pc').value.trim(),nm=r.querySelector('.pnm').value.trim(),any=false,ls=[];
     r.querySelectorAll('.pn').forEach(function(i){var v=Math.round((Number(i.value)||0)*100)/100;if(v<0)msg='金額不可為負數。';if(v>0){any=true;ls.push({c:c,m:i.dataset.m,a:v})}});
     if(any&&!c){msg='有金額的列請填寫事工編碼。';return}
-    if(c&&any){if(seen[c]){msg='事工編碼「'+c+'」重複,請合併成一列。';return}seen[c]=1;if(nm)names[c]=nm;var bv=r.querySelector('.pbind').value;if(bv){if(bseen[bv]){var bp=S.projects.get(bv);msg='方案「'+(bp?bp.name:bv)+'」被綁定在兩列,請只綁定一列。';return}bseen[bv]=1;binds[c]=bv}
+    if(c&&any){if(seen[c]){msg='事工編碼「'+c+'」重複,請合併成一列。';return}seen[c]=1;if(nm)names[c]=nm;var sls=[];
+      r.querySelectorAll('.slot').forEach(function(sl){if(msg)return;var uv=sl.querySelector('.pasg').value,bv=sl.querySelector('.pbind').value,ch=[];try{ch=JSON.parse(sl.dataset.chain||'[]')}catch(x){ch=[]}
+        if(!uv&&bv){var pj0=S.projects.get(bv);if(pj0&&pj0.owner&&TM.users[pj0.owner])uv=pj0.owner}
+        if(bv){if(bseen[bv]){var bp=S.projects.get(bv);msg='方案「'+(bp?bp.name:bv)+'」被綁定在兩處,請只綁定一次。';return}bseen[bv]=1}
+        if(uv){var lu=ch.length?ch[ch.length-1]:null,uo=TM.users[uv],un=(uo&&uo.name)||(lu&&lu.uid===uv?lu.name:'');
+          if(lu&&lu.uid===uv)lu.pid=bv||'';else if(lu)ch[ch.length-1]={uid:uv,name:un,pid:bv||'',from:lu.from||''};else ch.push({uid:uv,name:un,pid:bv||'',from:''});sls.push(ch)}
+        else if(ch.length>1){msg='「'+c+'」已有交接紀錄,不能改回「未派發」。';return}
+        else if(bv)sls.push([{uid:'',name:'',pid:bv,from:''}])});
+      if(msg)return;
       var nt=r.querySelector('.pnote').value.trim();if(nt)notes[c]=nt;
-      var uv=r.querySelector('.pasg').value,ch=[];try{ch=JSON.parse(r.dataset.chain||'[]')}catch(x){ch=[]}
-      if(uv){var lu=ch.length?ch[ch.length-1]:null,uo=TM.users[uv],un=(uo&&uo.name)||(lu&&lu.uid===uv?lu.name:'');
-        if(lu&&lu.uid===uv)lu.pid=bv||'';else if(lu)ch[ch.length-1]={uid:uv,name:un,pid:bv||'',from:lu.from||''};else ch.push({uid:uv,name:un,pid:bv||'',from:''});
-        asg[c]=ch;var pp=ch.slice(0,-1).map(function(a){return a.pid}).filter(Boolean);if(pp.length)prior[c]=pp}
-      else if(ch.length>1){msg='「'+c+'」已有交接紀錄,不能改回「未派發」。';return}
+      if(sls.length){var sf=poaSlotFields(sls);slots[c]=sls;if(sf.bind)binds[c]=sf.bind;if(sf.more.length)more[c]=sf.more;if(sf.prior.length)prior[c]=sf.prior}
       lines=lines.concat(ls)}
   });
   if(msg){err.textContent=msg;return}
@@ -1357,9 +1377,9 @@ async function poaSave(){
   }
   var btn=document.getElementById('poasave');btn.disabled=true;
   try{
-    if(mode==='new'){var id=await saveDoc('poaPlans',null,{center:center,fy:fy,total:target});await saveDoc('poaVersions',null,{planId:id,ver:0,type:'原始',date:date,lines:lines,names:names,binds:binds,notes:notes,assign:asg,prior:prior,total:total,reason:'原始 POA',by:uid,byName:myName()});V.planId=id}
-    else if(mode==='edit0'){await saveDoc('poaPlans',plan.id,{total:target});await saveDoc('poaVersions',versionsOf(plan.id).slice(-1)[0].id,Object.assign({lines:lines,names:names,binds:binds,notes:notes,assign:asg,prior:prior,total:total},xfer?{xfer:xfer}:{}))}
-    else{var vs=versionsOf(plan.id);await saveDoc('poaVersions',null,{planId:plan.id,ver:vs[vs.length-1].ver+1,type:'異動',date:date,lines:lines,names:names,binds:binds,notes:notes,assign:asg,prior:prior,total:total,reason:reason,approver:appr,xfer:xfer||null,by:uid,byName:myName()})}
+    if(mode==='new'){var id=await saveDoc('poaPlans',null,{center:center,fy:fy,total:target});await saveDoc('poaVersions',null,{planId:id,ver:0,type:'原始',date:date,lines:lines,names:names,binds:binds,notes:notes,slots:slots,more:more,prior:prior,total:total,reason:'原始 POA',by:uid,byName:myName()});V.planId=id}
+    else if(mode==='edit0'){await saveDoc('poaPlans',plan.id,{total:target});await saveDoc('poaVersions',versionsOf(plan.id).slice(-1)[0].id,Object.assign({lines:lines,names:names,binds:binds,notes:notes,slots:slots,more:more,prior:prior,total:total},xfer?{xfer:xfer}:{}))}
+    else{var vs=versionsOf(plan.id);await saveDoc('poaVersions',null,{planId:plan.id,ver:vs[vs.length-1].ver+1,type:'異動',date:date,lines:lines,names:names,binds:binds,notes:notes,slots:slots,more:more,prior:prior,total:total,reason:reason,approver:appr,xfer:xfer||null,by:uid,byName:myName()})}
     V.ver=null;V.tab='poa';closeModal();toast(mode==='memo'?'已建立新版本,即日起以新版本為準。請依最新 POA 調整各方案的預算':'已儲存');sched();
   }catch(e){btn.disabled=false}
 }
@@ -2401,41 +2421,50 @@ function resolveNames(){
 }
 boot();
 /* ----- 督導:派發 / 交接 ----- */
-function poaHandoverOpen(code){
+function poaHandoverOpen(code,slot){
   var plan=S.poaPlans.get(V.planId),vs=plan?versionsOf(plan.id):[],v=vs[vs.length-1];if(!v)return;
   window.__poaCenter=plan.center;
-  var ch=asgChain(v,code),cur=ch.length?ch[ch.length-1]:null,first=!ch.length;
-  window.__ho={code:code,vid:v.id};
+  var sls=asgSlots(v,code),si=Math.min(Number(slot)||0,sls.length),ch=sls[si]?sls[si].chain:[],cur=ch.length?ch[ch.length-1]:null,first=!ch.length;
+  var lab=(sls.length>1||si>=sls.length&&sls.length)?'(方案 '+(si+1)+')':'';
+  window.__ho={code:code,vid:v.id,slot:si};
   var el=document.getElementById('layer');
-  el.innerHTML='<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><header id="mt">'+(first?'派發方案':'交接 / 更換執行人員')+'：'+esc(code)+' '+esc(codeName(code,v))+'</header><div style="padding:1rem 1.1rem;display:grid;gap:.8rem">'
-   +(cur?'<div class="note info" style="margin:0">目前承辦:<b>'+esc(cur.name)+'</b>。社工年度中離職或轉調時,在這裡指定接手人員:原承辦的姓名與其方案會保留在紀錄中(標示為離職/已交接),接手人員自指定月份起承接。</div>':'<div class="note info" style="margin:0">把這個事工編碼派發給承辦社工,並綁定他的方案,系統才能比對計畫書預算與核銷。</div>')
+  el.innerHTML='<div class="ov"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><header id="mt">'+(first?(si>=sls.length&&sls.length?'同編碼新增方案並派發':'派發方案'):'交接 / 更換執行人員')+lab+'：'+esc(code)+' '+esc(codeName(code,v))+'</header><div style="padding:1rem 1.1rem;display:grid;gap:.8rem">'
+   +(cur?'<div class="note info" style="margin:0">目前承辦:<b>'+esc(cur.name||'?')+'</b>。社工年度中離職或轉調時,在這裡指定接手人員:原承辦的姓名與其方案會保留在紀錄中(標示為離職/已交接),接手人員自指定月份起承接。</div>':'<div class="note info" style="margin:0">一個事工編碼可以有 2–3 個方案(可由不同社工承辦)。把方案派發給承辦社工並綁定他的方案,系統才能比對計畫書預算與核銷;同編碼的方案合計對照這個編碼的 POA 金額。</div>')
    +'<div class="fld"><label for="hoUser">'+(first?'承辦社工':'接手人員')+' <i>*</i></label><select id="hoUser">'+poaUserOpts('', '請選擇社工')+'</select></div>'
    +(first?'':'<div class="fld"><label for="hoMon">自哪個月份起接手 <i>*</i></label><select id="hoMon">'+MONTHS.map(function(m){return'<option>'+m+'</option>'}).join('')+'</select></div><div class="fld"><label for="hoNote">交接說明(選填,例:原承辦離職)</label><input type="text" id="hoNote"></div>')
    +'<div class="fld"><label for="hoBind">綁定方案</label><select id="hoBind">'+poaBindOpts('', '')+'</select><div class="help">選了承辦社工後,只列出他的方案。</div></div>'
    +'<div class="err" id="hoerr" role="alert"></div><div class="foot"><button type="button" class="btn" data-a="mclose">取消</button><button type="button" class="btn pri" data-a="poaHoSave" id="hosave">'+(first?'儲存派發':'確認交接')+'</button></div></div></div></div>';
   modalOpen=true;
-  el.onchange=function(e){var t=e.target;if(t&&t.id==='hoUser'){inSup(function(){var b=document.getElementById('hoBind'),m=null;b.innerHTML=poaBindOpts('',t.value);if(t.value)S.projects.forEach(function(x){if(x.owner===t.value&&x.center===window.__poaCenter&&x.code===code)m=x});if(m)b.value=m.id})}}
+  el.onchange=function(e){var t=e.target;if(t&&t.id==='hoUser'){inSup(function(){var b=document.getElementById('hoBind'),m=null;b.innerHTML=poaBindOpts('',t.value);if(t.value)S.projects.forEach(function(x){if(x.owner===t.value&&x.center===window.__poaCenter&&x.code===code&&!m)m=x});if(m)b.value=m.id})}}
 }
 function poaHandoverSave(){
   var ctx=window.__ho,err=document.getElementById('hoerr');err.textContent='';
   var plan=S.poaPlans.get(V.planId),v=S.poaVersions.get(ctx.vid),code=ctx.code;if(!plan||!v)return;
   var uv=document.getElementById('hoUser').value;if(!uv){err.textContent='請選擇社工。';return}
-  var chain=asgChain(v,code).map(function(a){return Object.assign({},a)}),cur=chain.length?chain[chain.length-1]:null;
+  var sls=asgSlots(v,code).map(function(sl){return sl.chain.map(function(a){return Object.assign({},a)})}),si=ctx.slot;
+  var chain=sls[si]||[],cur=chain.length?chain[chain.length-1]:null;
   if(cur&&cur.uid===uv){err.textContent='接手人員與目前承辦相同。';return}
   var monEl=document.getElementById('hoMon'),mon=monEl?monEl.value:'',pid=document.getElementById('hoBind').value;
-  if(pid){var dup=null;Object.keys(v.binds||{}).forEach(function(c){if(c!==code&&v.binds[c]===pid)dup=c});if(dup){err.textContent='這個方案已綁定在事工編碼「'+dup+'」。';return}}
+  if(pid){var used={};Object.keys(v.binds||{}).forEach(function(c){used[v.binds[c]]=c});Object.keys(v.more||{}).forEach(function(c){(v.more[c]||[]).forEach(function(id){used[id]=c})});if(cur&&cur.pid)delete used[cur.pid];if(used[pid]){err.textContent='這個方案已綁定在事工編碼「'+used[pid]+'」。';return}}
   var u=TM.users[uv],nm=(u&&u.name)||'';
-  var prior=Object.assign({},v.prior||{}),pl=(prior[code]||[]).slice();
-  if(cur){cur.left=true;var ne=document.getElementById('hoNote');if(ne&&ne.value.trim())cur.leftNote=ne.value.trim();cur.leftFrom=mon;if(cur.pid&&pl.indexOf(cur.pid)<0)pl.push(cur.pid)}
-  chain.push({uid:uv,name:nm,pid:pid||'',from:cur?mon:''});
-  if(pl.length)prior[code]=pl;
-  var assign=Object.assign({},v.assign||{});assign[code]=chain;
-  var binds=Object.assign({},v.binds||{});if(pid)binds[code]=pid;else delete binds[code];
+  if(cur){cur.left=true;var ne=document.getElementById('hoNote');if(ne&&ne.value.trim())cur.leftNote=ne.value.trim();cur.leftFrom=mon}
+  chain.push({uid:uv,name:nm,pid:pid||'',from:cur?mon:''});sls[si]=chain;
+  var sf=poaSlotFields(sls);
+  var slots=Object.assign({},v.slots||{});slots[code]=sls;
+  var binds=Object.assign({},v.binds||{}),more=Object.assign({},v.more||{}),prior=Object.assign({},v.prior||{});
+  if(sf.bind)binds[code]=sf.bind;else delete binds[code];
+  if(sf.more.length)more[code]=sf.more;else delete more[code];
+  var pl=(prior[code]||[]).slice();sf.prior.forEach(function(id){if(pl.indexOf(id)<0)pl.push(id)});if(pl.length)prior[code]=pl;
   var b=document.getElementById('hosave');b.disabled=true;
-  saveDoc('poaVersions',v.id,{assign:assign,binds:binds,prior:prior}).then(function(){closeModal();toast(cur?'已交接,原承辦姓名已保留':'已派發');sched()}).catch(function(){b.disabled=false});
+  saveDoc('poaVersions',v.id,{slots:slots,binds:binds,more:more,prior:prior}).then(function(){closeModal();toast(cur?'已交接,原承辦姓名已保留':'已派發');sched()}).catch(function(){b.disabled=false});
 }
-Object.assign(A,{poaHandover:function(d){poaHandoverOpen(d.code)},poaHoSave:function(){poaHandoverSave()}});
-['poaNew','poaMemo','poaEdit0','poaImportBtn','poaAddRow','poaDelRow','poaSave','poaDelLatest','poaDelPlan','poaHandover','poaHoSave','poaver','poametric','poaplan'].forEach(function(k){var f=A[k];if(f)A[k]=function(d,t){return inSup(function(){return f(d,t)})}});
+Object.assign(A,{poaHandover:function(d){poaHandoverOpen(d.code,d.slot)},poaHoSave:function(){poaHandoverSave()},
+  poaAddSlot:function(d,t){var td=t.closest('td'),box=td.querySelector('.slots'),n=box.querySelectorAll('.slot').length;if(n>=6){toast('同一事工編碼最多 6 個方案');return}box.insertAdjacentHTML('beforeend',poaSlotHtml({chain:[],bind:''},n))},
+  poaDelSlot:function(d,t){var sl=t.closest('.slot'),box=sl.parentElement,ch=[];try{ch=JSON.parse(sl.dataset.chain||'[]')}catch(x){}
+    if(ch.length>1){toast('這個方案已有交接紀錄,不能移除');return}
+    if(box.querySelectorAll('.slot').length>1){sl.remove();[].slice.call(box.querySelectorAll('.slb')).forEach(function(l,i){l.firstChild.nodeValue='方案 '+(i+1)+' '})}
+    else{sl.querySelector('.pasg').value='';var bs=sl.querySelector('.pbind');bs.innerHTML=poaBindOpts('','');sl.dataset.chain='[]'}poaRecalc()}});
+['poaNew','poaMemo','poaEdit0','poaImportBtn','poaAddRow','poaDelRow','poaAddSlot','poaDelSlot','poaSave','poaDelLatest','poaDelPlan','poaHandover','poaHoSave','poaver','poametric','poaplan'].forEach(function(k){var f=A[k];if(f)A[k]=function(d,t){return inSup(function(){return f(d,t)})}});
 
 })();
 </script>
