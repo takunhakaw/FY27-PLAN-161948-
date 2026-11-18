@@ -244,6 +244,55 @@ body{margin:0;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-
 .phflow{display:flex;flex-wrap:wrap;gap:.7rem;align-items:flex-start;margin:.4rem 0}
 .phflow figure{margin:0;max-width:100%;break-inside:avoid}
 .phflow img{display:block;height:auto;max-width:100%;border-radius:0}
+
+/* ===== 手機版精簡介面(方案內頁) ===== */
+.mq-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:.75rem;margin-block:.7rem;display:grid;gap:.6rem}
+.mq-seg{flex-wrap:nowrap;overflow-x:auto;padding-bottom:.15rem}
+.mq-seg button{white-space:nowrap;min-height:34px}
+.mq-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem}
+.mq-nums div{background:var(--bg);border-radius:8px;padding:.45rem .55rem;min-width:0}
+.mq-nums small{display:block;color:var(--muted);font-size:.72rem}
+.mq-nums b{font-size:1.05rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.mq-nums .neg b{color:var(--bad)}
+.mq-items{display:grid;gap:.45rem}
+.mq-item{border:1px solid var(--line);border-radius:8px;padding:.55rem .65rem;display:grid;grid-template-columns:1fr auto;gap:.3rem .6rem;align-items:start}
+.mq-item.neg{border-color:var(--bad);background:var(--bad-bg)}
+.mq-it b{display:block;overflow-wrap:anywhere}
+.mq-it small,.mq-am small{color:var(--muted);font-size:.75rem;display:block}
+.mq-am{text-align:right}
+.mq-am b{font-size:1.05rem;font-variant-numeric:tabular-nums}
+.mq-item.neg .mq-am b{color:var(--bad)}
+.mq-item .meter,.mq-item .btn{grid-column:1/-1}
+.mq-item .btn{justify-self:end}
+.mq-fold{background:var(--surface);border:1px solid var(--line);border-radius:8px;margin-bottom:.8rem}
+.mq-fold>summary{padding:.7rem .9rem;cursor:pointer;font-weight:600;list-style:none;min-height:44px;display:flex;align-items:center;justify-content:space-between}
+.mq-fold>summary::-webkit-details-marker{display:none}
+.mq-fold>summary::after{content:"▾";color:var(--muted)}
+.mq-fold[open]>summary::after{content:"▴"}
+.mq-fold[open]>summary{border-bottom:1px solid var(--line)}
+.mq-fold>.sec{border:0;margin:0;border-radius:0}
+.mq-card .mq-fold{margin:0;background:var(--bg)}
+.mq-card .mq-fold .strip{margin:.6rem}
+.mq-ex{display:grid;grid-template-columns:1fr auto;gap:.4rem;padding:.6rem .8rem;border-bottom:1px solid var(--line)}
+.mq-ex:last-child{border-bottom:0}
+.mq-ex .l b{display:block;overflow-wrap:anywhere}
+.mq-ex small{display:block;color:var(--muted);font-size:.75rem;overflow-wrap:anywhere}
+.mq-ex .r{text-align:right}
+.mq-ex .r b{font-variant-numeric:tabular-nums}
+.mq-tabs button{flex:1 1 auto}
+.mq-fab{position:fixed;right:max(14px,env(safe-area-inset-right,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));z-index:30;border-radius:99px;min-height:48px;padding:.5rem 1.2rem;box-shadow:var(--shadow);font-size:1rem}
+.mq-ov{align-items:flex-end;padding:0}
+.mq-sheet{margin:0;border-radius:16px 16px 0 0;max-width:100%;max-height:92vh;max-height:92dvh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,0px)}
+.mq-sheet>header{display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--surface);z-index:1}
+.mq-body{padding:.9rem 1.1rem;display:grid;gap:.75rem}
+.mq-sheet .two{grid-template-columns:1fr 1fr!important}
+.mq-sheet .fld input,.mq-sheet .fld select{min-height:44px}
+#qa{font-size:1.3rem;font-weight:700}
+.mq-menu{display:grid;gap:.4rem;padding:.9rem 1.1rem}
+.mq-menu .btn{text-align:left;min-height:48px;font-size:1rem}
+.mq-rec{border:1px dashed var(--line);border-radius:8px;padding:.4rem .6rem;display:grid;gap:.2rem;font-size:.85rem}
+.mq-rec div{display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+@media print{.mq-fab{display:none}}
 </style>
 
 </head>
@@ -587,6 +636,119 @@ function pst(p){return p.status==='結案待報告'||p.status==='已結案'?p.st
 function pillCls(s){return s==='草稿'?'draft':s==='執行中'||s==='已結案'?'run':s==='結案待報告'?'info':'wait'}
 function toast(m){var t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(function(){t.remove()},2600)}
 function sched(){if(raf)return;raf=requestAnimationFrame(function(){raf=0;render()})}
+
+/* ---------- 手機版精簡介面 ---------- */
+var MQ=window.matchMedia?window.matchMedia('(max-width:700px)'):null;
+function isMob(){return!!(MQ&&MQ.matches)}
+V.mm=null;V.mmp=null;V.fold={};
+if(MQ){var mqf=function(){sched()};if(MQ.addEventListener)MQ.addEventListener('change',mqf);else if(MQ.addListener)MQ.addListener(mqf)}
+document.addEventListener('toggle',function(e){var d=e.target;if(d&&d.dataset&&d.dataset.fk)V.fold[d.dataset.fk]=d.open},true);
+var MQ_HIDDEN=['plan','budget','res','report'];
+function sm(n){return(n<0?'-':'')+'$'+money(Math.abs(n))}
+function curMonthKey(){return(new Date().getMonth()+1)+'月'}
+function expMonthOf(x){var b=S.budgets.get(x.budgetId);if(b)return x.useMonth||b.month;var m=/^\d{4}-(\d{2})/.exec(x.date||'');return m?(+m[1])+'月':''}
+function mqMonths(p,c){var s={};c.B.forEach(function(b){if(b.month)s[b.month]=1});c.E.forEach(function(x){var m=expMonthOf(x);if(m)s[m]=1});s[curMonthKey()]=1;return MONTHS.filter(function(m){return s[m]})}
+function mqMonth(p,c){var ms=mqMonths(p,c);if(V.mmp!==p.id){V.mmp=p.id;V.mm=null}if(V.mm&&ms.indexOf(V.mm)>=0)return V.mm;var cur=curMonthKey();return ms.indexOf(cur)>=0?cur:ms[0]}
+function mqSeg(p,c){var sel=mqMonth(p,c),cur=curMonthKey();return'<div class="seg mq-seg" role="group" aria-label="月份">'+mqMonths(p,c).map(function(m){return'<button data-a="mmonth" data-v="'+m+'" aria-pressed="'+(sel===m)+'">'+esc(m)+(m===cur?'・本月':'')+'</button>'}).join('')+'</div>'}
+function mqFold(key,title,html){return'<details class="mq-fold" data-fk="'+key+'"'+(V.fold[key]?' open':'')+'><summary>'+esc(title)+'</summary>'+html+'</details>'}
+function mqTabs(tabs,M){
+  var h=function(list){return list.map(function(t){return'<button role="tab" data-a="ptab" data-v="'+t[0]+'" aria-selected="'+(V.ptab===t[0])+'">'+t[1]+'</button>'}).join('')};
+  if(!M)return'<div class="tabs" role="tablist">'+h(tabs)+'</div>';
+  var show=tabs.filter(function(t){return MQ_HIDDEN.indexOf(t[0])<0}),cur=tabs.filter(function(t){return MQ_HIDDEN.indexOf(t[0])>=0&&t[0]===V.ptab})[0];
+  return'<div class="tabs mq-tabs" role="tablist">'+h(show)+'<button role="tab" data-a="mqmenu" aria-selected="'+(!!cur)+'" aria-haspopup="dialog">☰ '+(cur?cur[1]:'更多')+'</button></div>';
+}
+function mqFab(){return canWrite?'<div style="height:5rem"></div><button type="button" class="btn pri mq-fab" data-a="qexp">＋ 記一筆核銷</button>':''}
+function mqCard(p,c,r,stripH){
+  var m=mqMonth(p,c),np=noPlanOf(p),SM=spentByMonth(p.id),HM=heldByMonth(p.id),MV=moveByMonth(p.id);
+  var bs=by(c.B.filter(function(b){return b.month===m}),'no');
+  var t=sum(bs,'total'),mi=MV.i[m]||0,mo=MV.o[m]||0,h=HM[m]||0;
+  var sp=np?sum(c.E.filter(function(x){return expMonthOf(x)===m}),'amount'):(SM[m]||0);
+  var left=t-sp-h-mo+mi,rate=t?Math.min(100,Math.max(0,pct(sp-mi,t))):0;
+  var items=bs.map(function(b){var x=budgetCalc(b),pr=b.total?Math.min(100,Math.max(0,pct(x.spent+x.held,b.total))):0;
+    return'<div class="mq-item'+(x.left<0?' neg':'')+'"><div class="mq-it"><b>'+esc(b.item)+'</b><small>'+esc(catOf(b))+((Number(b.qty)>1||b.unit)?' ・ '+money(b.price)+'×'+esc(b.qty)+esc(b.unit||''):'')+'</small></div>'
+     +'<div class="mq-am"><b>剩 '+sm(x.left)+'</b><small>已核 $'+money(x.spent)+' / $'+money(b.total)+(x.held?' ・ 保留 $'+money(x.held):'')+'</small></div>'
+     +'<div class="meter'+(pr>=100?' over':pr>=85?' hi':'')+'"><i style="width:'+pr+'%"></i></div>'
+     +(canWrite?'<button type="button" class="btn sm" data-a="qexp" data-b="'+b.id+'">＋ 記一筆</button>':'')+'</div>'});
+  var body=np?'<div class="note info" style="margin:0">本方案無須計畫書,不分預算項目;核銷請按「＋ 記一筆核銷」填寫費用說明。</div>'
+    :items.length?'<div class="mq-items">'+items.join('')+'</div>':'<p class="hint" style="margin:0">'+esc(m)+' 沒有編列預算項目。可從上方切換月份,或到「☰ 預算」新增。</p>';
+  return'<section class="mq-card" aria-label="本月預算分析">'+mqSeg(p,c)
+   +'<div class="mq-nums"><div><small>'+esc(monthFull(p.id,m))+' 預算</small><b>'+(np?'—':'$'+money(t))+'</b></div><div><small>已核銷</small><b>$'+money(sp)+'</b></div><div class="'+(left<0&&!np?'neg':'')+'"><small>剩餘</small><b>'+(np?'—':sm(left))+'</b></div></div>'
+   +(np?'':'<div class="meter'+(rate>=100?' over':rate>=85?' hi':'')+'"><i style="width:'+rate+'%"></i></div>')
+   +'<div class="rem'+(r.today?' today':'')+'">'+esc(r.t)+'</div>'
+   +(c.overdue.length?'<div class="note bad" style="margin:0">有 '+c.overdue.length+' 筆保留經費已到期,請到「核銷與展延」處理。</div>':'')
+   +body
+   +mqFold('sum_'+p.id,'全案摘要(總預算、保留、執行率)',stripH)+'</section>';
+}
+function expTabM(p,c,late,s1,top,s2){
+  var m=mqMonth(p,c),list=by(c.E.filter(function(x){return expMonthOf(x)===m}),'date').reverse();
+  var rows=list.map(function(x){var b=S.budgets.get(x.budgetId);
+    return'<div class="mq-ex"><div class="l"><b>'+esc(b?b.item:(x.desc||'(未列入預算)'))+'</b><small>'+esc((x.date||'').replace(/-/g,'/'))+(b&&b.cat?' ・ '+esc(b.cat):'')+(x.receipt?' ・ 憑證 '+esc(x.receipt):'')+(x.useMonth&&b&&x.useMonth!==b.month?' ・ 列入 '+esc(x.useMonth):'')+'</small>'+(x.diffNote?'<small>'+esc(x.diffNote)+'</small>':'')+'</div>'
+     +'<div class="r"><b>$'+money(x.amount)+'</b>'+(canWrite?'<div>'+rowBtns('expenditure',x.id)+'</div>':'')+'</div></div>'});
+  var cur=sec(monthFull(p.id,m)+' 核銷明細',canWrite?'<button type="button" class="btn sm pri" data-a="qexp">＋ 快速記帳</button>':'',
+    (list.length?'<div style="padding:.5rem .8rem;border-bottom:1px solid var(--line)" class="rem">共 '+list.length+' 筆,合計 <b>$'+money(sum(list,'amount'))+'</b></div>'+rows.join(''):'<p class="hint" style="padding:.8rem .9rem">'+esc(m)+' 尚無核銷紀錄。</p>'),1);
+  return'<div style="margin-bottom:.8rem">'+mqSeg(p,c)+'</div>'+late+cur
+   +mqFold('exp_all','其他月份核銷明細(全部)',s1)+mqFold('exp_co','經費保留/展延單',top+s2);
+}
+/* ----- 快速核銷 ----- */
+function qWait(fn){return new Promise(function(res){var n=0;(function t(){if(fn()||n++>30)return res();setTimeout(t,80)})()})}
+function qOpts(p,m){
+  var q=window.__q,bs=by(kids('budgets',p.id),'no'),g1=bs.filter(function(b){return b.month===m}),g2=bs.filter(function(b){return b.month!==m}).sort(function(a,b){return MONTHS.indexOf(a.month)-MONTHS.indexOf(b.month)||(a.no>b.no?1:-1)});
+  var opt=function(b,pre){var x=budgetCalc(b);return'<option value="'+b.id+'"'+(b.id===q.bid?' selected':'')+'>'+esc((pre?b.month+' ':'')+b.item)+'(餘 $'+money(x.left)+')</option>'};
+  return'<option value="">請選擇預算項目</option>'+(g1.length?'<optgroup label="'+esc(m)+' 預算項目">'+g1.map(function(b){return opt(b,0)}).join('')+'</optgroup>':'')+(g2.length?'<optgroup label="其他月份">'+g2.map(function(b){return opt(b,1)}).join('')+'</optgroup>':'');
+}
+function qRecent(){var q=window.__q;if(!q.recent.length)return'';return'<div class="mq-rec"><b>本次已記 '+q.n+' 筆,合計 $'+money(q.sum)+'</b>'+q.recent.slice(0,5).map(function(x){return'<div><span>'+esc(x.name)+' $'+money(x.amt)+'</span><button type="button" class="btn sm bad" data-a="qundo" data-id="'+x.id+'">復原</button></div>'}).join('')+'</div>'}
+function qHint(){var h=document.getElementById('qhint'),sel=document.getElementById('qb');if(!h||!sel)return;var b=S.budgets.get(sel.value);if(!b){h.textContent='';return}var a=Number((document.getElementById('qa')||{}).value)||0,x=budgetCalc(b),after=x.left-a;
+  h.textContent='此項目:預算 $'+money(b.total)+'、已核銷 $'+money(x.spent)+'、餘額 $'+money(x.left)+(a?' → 記入後餘 $'+money(after)+(after<0?'(超出,依規定得核實勻支)':''):'');h.style.color=after<0?'var(--bad)':''}
+function openQuick(bid){
+  var p=S.projects.get(V.pid);if(!p||!canWrite)return;var c=calc(p.id);
+  window.__q={pid:p.id,m:mqMonth(p,c),bid:bid||'',n:0,sum:0,recent:[],busy:false};
+  var q=window.__q,np=noPlanOf(p);
+  document.getElementById('layer').innerHTML='<div class="ov mq-ov"><div class="modal mq-sheet" role="dialog" aria-modal="true" aria-labelledby="mt"><header id="mt"><span>快速核銷</span><button type="button" class="btn sm" data-a="mclose">完成</button></header><div class="mq-body">'
+   +(np?'<div class="fld"><label for="qd">費用說明 <i>*</i></label><input type="text" id="qd" placeholder="例如:活動點心" autocomplete="off"></div>'
+        :'<div class="fld"><label for="qb">扣抵預算項目 <i>*</i></label><select id="qb">'+qOpts(p,q.m)+'</select><div class="help" id="qhint"></div></div>')
+   +'<div class="two"><div class="fld"><label for="qa">金額(元) <i>*</i></label><input type="number" id="qa" inputmode="decimal" min="0" step="any" placeholder="0" autocomplete="off"></div><div class="fld"><label for="qdt">核銷日期</label><input type="date" id="qdt" value="'+today()+'"></div></div>'
+   +'<div class="two"><div class="fld"><label for="qr">憑證/單據號</label><input type="text" id="qr" autocomplete="off"></div><div class="fld"><label for="qn">備註/差異說明</label><input type="text" id="qn" autocomplete="off"></div></div>'
+   +'<div class="err" id="qerr" role="alert"></div><div id="qrecent"></div>'
+   +'<div class="foot"><button type="button" class="btn pri" id="qsave" data-a="qsave" style="width:100%;min-height:48px">儲存並續記下一筆</button></div></div></div></div>';
+  modalOpen=true;modalDirty=false;qHint();var a=document.getElementById('qa');if(a&&bid)a.focus();
+}
+async function qSave(){
+  var q=window.__q,p=q&&S.projects.get(q.pid);if(!p||q.busy)return;
+  var g=function(i){return document.getElementById(i)},err=g('qerr');err.textContent='';
+  var np=noPlanOf(p),bid=np?'':(g('qb')||{}).value,amt=Number(g('qa').value),date=g('qdt').value,desc=np?(g('qd').value||'').trim():'';
+  if(!np&&!bid){err.textContent='請選擇扣抵的預算項目。';return}
+  if(np&&!desc){err.textContent='請填寫費用說明。';return}
+  if(!(amt>0)){err.textContent='請填寫大於 0 的金額。';return}
+  if(!date){err.textContent='請選擇核銷日期。';return}
+  if(!np){var c=calc(p.id);if(amt>c.avail){err.textContent='金額超過方案可用餘額 $'+money(c.avail)+'。';return}}
+  var data={projectId:p.id,budgetId:bid,date:date,amount:amt,receipt:(g('qr').value||'').trim(),diffNote:(g('qn').value||'').trim()};if(np)data.desc=desc;
+  q.busy=true;var btn=g('qsave');btn.disabled=true;
+  try{
+    var id=await saveDoc('expenditures',null,data);await qWait(function(){return S.expenditures.has(id)});
+    var b=S.budgets.get(bid);q.recent.unshift({id:id,name:b?b.item:desc,amt:amt});q.n++;q.sum+=amt;q.bid=bid;
+    var sel=g('qb');if(sel){sel.innerHTML=qOpts(p,q.m)}
+    g('qa').value='';g('qn').value='';if(np)g('qd').value='';
+    g('qrecent').innerHTML=qRecent();qHint();toast('已記錄 $'+money(amt));g('qa').focus();
+  }catch(e){}
+  q.busy=false;var b2=g('qsave');if(b2)b2.disabled=false;
+}
+async function qUndo(id){
+  var q=window.__q;if(!q||q.busy||!S.expenditures.get(id))return;q.busy=true;
+  try{await delDoc('expenditures',id);await qWait(function(){return!S.expenditures.has(id)});
+    var i=q.recent.map(function(x){return x.id}).indexOf(id);if(i>=0){q.n--;q.sum-=q.recent[i].amt;q.recent.splice(i,1)}
+    var p=S.projects.get(q.pid),sel=document.getElementById('qb');if(sel&&p)sel.innerHTML=qOpts(p,q.m);
+    var r=document.getElementById('qrecent');if(r)r.innerHTML=qRecent();qHint();toast('已復原')}catch(e){}
+  q.busy=false;
+}
+document.addEventListener('input',function(e){if(e.target&&e.target.id==='qa')qHint()});
+document.addEventListener('change',function(e){if(e.target&&e.target.id==='qb')qHint()});
+function openMqMenu(){
+  var p=S.projects.get(V.pid);if(!p)return;var c=calc(p.id);
+  var items=[['plan','📄 計畫書'],['budget','💰 預算'+(c.poaOver?' ⚠':'')],['res','🎁 資源與回饋'],['report','📑 成果報告']];
+  document.getElementById('layer').innerHTML='<div class="ov mq-ov" data-a="ovclose"><div class="modal mq-sheet" role="dialog" aria-modal="true" aria-labelledby="mt"><header id="mt"><span>其他功能</span><button type="button" class="btn sm" data-a="mclose">關閉</button></header><div class="mq-menu">'
+    +items.map(function(t){return'<button type="button" class="btn'+(V.ptab===t[0]?' pri':'')+'" data-a="mqgo" data-v="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div></div></div>';
+  modalOpen=true;modalDirty=false;
+}
 
 /* ---------- calculations (the “virtual columns”) ---------- */
 function noPlanOf(p){if(!p)return false;if(p.noPlan==='1'||p.noPlan===true)return true;if(!POAON){var ma=mpOf(p);return!!(ma&&ma.noplan)}var cd=poaCodeFor(p),r=false;if(!cd)return false;S.poaPlans.forEach(function(pl){if(pl.center===p.center&&pl.noplan&&pl.noplan[cd])r=true});return r}
@@ -1027,7 +1189,9 @@ function eventTab(p,c){
   var roster=sec('參與者名冊與出席分析',(canWrite?'<button class="btn sm" data-a="rosterSort">依編號重排</button>':'')+impBtn('participant')+addBtn('participant','新增參與者'),
     summary+table(['順序','編號','對象','家庭代號(選填)','備註','#參與場次','#參與率','最近出席',''],prow,'','尚未建立名冊。個案填個案編號,手足、社區童填去姓氏的名,可一次貼上多位;用 ↑↓ 調整順序。')
     +'<p class="hint" style="padding:.5rem .9rem">編號/稱呼由社工自行填寫(個案用個案編號;手足、社區童用去姓氏的名),請勿填完整姓名、身分證字號或聯絡方式。順序可用 ↑↓ 調整,出席登記時依這個順序列出。</p>',1);
-  return stat+sec('活動場次與人次追蹤',impBtn('event')+addBtn('event','新增場次'),evs.length?evs.join(''):'<p class="hint">尚未排定活動場次。同類型的場次可在新增後用「複製」一次建立多場。</p>',evs.length?1:0)+roster;
+  var evSec=sec('活動場次與人次追蹤',impBtn('event')+addBtn('event','新增場次'),evs.length?evs.join(''):'<p class="hint">尚未排定活動場次。同類型的場次可在新增後用「複製」一次建立多場。</p>',evs.length?1:0);
+  if(isMob())return evSec+mqFold('ev_stat','人數統計',stat)+mqFold('ev_roster','參與者名冊與出席分析',roster);
+  return stat+evSec+roster;
 }
 function openAttendance(eventId,old){
   var e=S.events.get(eventId);if(!e)return;var pid=e.projectId;
@@ -1076,9 +1240,11 @@ function expTab(p,c){
     return'<tr><th colspan="8" style="text-align:left;background:var(--accent-soft);color:var(--fg)">'+(g.m?esc(monthFull(p.id,g.m))+' 保留申請':'未指定月份')+'　保留中小計 $'+money(sum(act,'amount'))+(g.items.length>act.length?'(累計 $'+money(sum(g.items,'amount'))+')':'')+'</th></tr>'
      +by(g.items,'createdAt').map(function(x){var b=S.budgets.get(x.budgetId),a=isActive(x);
        return'<tr><td>'+esc(b?(b.cat?b.cat+'｜':'')+b.month+' '+b.item:monthFull(x.projectId,fm(x))+' 計畫書經費剩餘')+'</td><td class="n">'+money(x.amount)+'</td><td>'+esc(monthFull(x.projectId,x.toMonth))+'</td><td><span class="pill '+(a?(isDue(x)?'bad':'wait'):'draft')+'">'+(a?(isDue(x)?'保留中・已到期':'保留中'):'已解除')+'</span></td><td class="rest">'+esc(x.reason)+'</td><td>'+fdate(x.createdAt)+'</td><td>'+(a?'':fdate(x.resolvedAt)+' '+esc(x.resolvedNote||''))+'</td><td class="act">'+(canWrite&&a?'<button class="btn sm" data-a="release" data-id="'+x.id+'">解除保留</button> ':'')+rowBtns('carryover',x.id)+'</td></tr>'}).join('')}).join('');
-  return late+sec('經費實際核銷(依核銷日期的月份分組)',(canWrite?'<button class="btn sm" data-a="expImport">匯入核銷明細</button>':'')+addBtn('expenditure','新增核銷'),table(['核銷日期','扣抵項目','場次','#金額','憑證號','會計科目','差異說明',''],rows,
-    '<tr><td colspan="3">已核銷合計</td><td class="n">'+money(c.spent)+'</td><td colspan="4">'+(kids('expenditures',p.id).some(function(x){return!x.budgetId})?'含未列入預算的新增項目 $'+money(sum(kids('expenditures',p.id).filter(function(x){return!x.budgetId}),'amount')):'')+'</td></tr>','尚無核銷紀錄'),1)
-   +top+sec('經費保留/展延單(依保留所屬月份)',addBtn('carryover','新增保留/展延'),cr?'<div class="tw"><table><thead><tr><th>保留內容</th><th class="n">金額</th><th>延至</th><th>狀態</th><th>原因說明</th><th>建立日</th><th>解除</th><th></th></tr></thead><tbody>'+cr+'</tbody><tfoot><tr><td>保留中總計(方案層標記)</td><td class="n">'+money(c.held)+'</td><td colspan="6"></td></tr></tfoot></table></div>':'<p class="hint" style="padding:.8rem .9rem">尚無保留或展延。申請時選擇是哪個月份的計畫書經費剩餘、要延到哪個月,填金額與原因即可。</p>',1);
+  var s1=sec('經費實際核銷(依核銷日期的月份分組)',(canWrite?'<button class="btn sm" data-a="expImport">匯入核銷明細</button>':'')+addBtn('expenditure','新增核銷'),table(['核銷日期','扣抵項目','場次','#金額','憑證號','會計科目','差異說明',''],rows,
+    '<tr><td colspan="3">已核銷合計</td><td class="n">'+money(c.spent)+'</td><td colspan="4">'+(kids('expenditures',p.id).some(function(x){return!x.budgetId})?'含未列入預算的新增項目 $'+money(sum(kids('expenditures',p.id).filter(function(x){return!x.budgetId}),'amount')):'')+'</td></tr>','尚無核銷紀錄'),1);
+  var s2=sec('經費保留/展延單(依保留所屬月份)',addBtn('carryover','新增保留/展延'),cr?'<div class="tw"><table><thead><tr><th>保留內容</th><th class="n">金額</th><th>延至</th><th>狀態</th><th>原因說明</th><th>建立日</th><th>解除</th><th></th></tr></thead><tbody>'+cr+'</tbody><tfoot><tr><td>保留中總計(方案層標記)</td><td class="n">'+money(c.held)+'</td><td colspan="6"></td></tr></tfoot></table></div>':'<p class="hint" style="padding:.8rem .9rem">尚無保留或展延。申請時選擇是哪個月份的計畫書經費剩餘、要延到哪個月,填金額與原因即可。</p>',1);
+  if(isMob())return expTabM(p,c,late,s1,top,s2);
+  return late+s1+top+s2;
 }
 function resTab(p,c){
   var R=kids('resources',p.id),ty=['物力','企業捐助','其他資源連結'];
@@ -1179,15 +1345,15 @@ function reportDoc(p,c){
 
 /* ---------- project view ---------- */
 function projectView(p){
-  var c=calc(p.id),r=reminder(c);
+  var c=calc(p.id),r=reminder(c),M=isMob();
   var tabs=[['plan','計畫書'],['budget','預算'+(c.poaOver?' ⚠':'')],['events','活動場次'],['exp','核銷與展延'],['res','資源與回饋'],['report','成果報告']];
   var logs=Object.keys(p.approvals||{}).map(function(k){var a=p.approvals[k];return esc(k)+(a.ok===false?'退回':'同意')+(a.note?'('+esc(a.note)+')':'')}).join(' ・ ');
   var body={plan:planTab,budget:budgetTab,events:eventTab,exp:expTab,res:resTab,report:reportTab}[V.ptab](p,c);
   return'<div class="crumb"><button data-a="nav" data-v="'+(V.from||'home')+'">← 返回'+(V.from==='all'?'全部方案':V.from==='review'?'待審核':V.from==='poa'?'年度 POA':'我的方案')+'</button></div>'
-   +'<div class="phead"><div><h1>'+esc(p.name)+'</h1><div class="sub" style="margin:0">'+esc(p.center)+' ・ '+esc(p.fy||'FY26')+' '+esc(p.month)+' ・ 編碼 '+esc(p.code)+' ・ 主責 '+esc(ownerName(p))+'</div></div><div class="actions"><span class="pill '+pillCls(pst(p))+'">'+esc(pst(p))+'</span>'+statusActions(p,c)+(canWrite&&(p.owner===uid||myRole()!=='社工')?'<button class="btn sm bad" data-a="delProject">刪除方案</button>':'')+'</div></div>'
+   +'<div class="phead"><div><h1>'+esc(p.name)+'</h1><div class="sub" style="margin:0">'+esc(p.center)+' ・ '+esc(p.fy||'FY26')+' '+esc(p.month)+' ・ 編碼 '+esc(p.code)+' ・ 主責 '+esc(ownerName(p))+'</div></div><div class="actions"><span class="pill '+pillCls(pst(p))+'">'+esc(pst(p))+'</span>'+statusActions(p,c)+(!M&&canWrite&&(p.owner===uid||myRole()!=='社工')?'<button class="btn sm bad" data-a="delProject">刪除方案</button>':'')+'</div></div>'
    
-   +'<div class="strip"><div><small>計畫書總預算</small><b>$'+money(c.total)+'</b></div><div><small>已核銷</small><b>$'+money(c.spent)+'</b></div>'+(c.HC.length?'<div><small>保留中(延展)</small><b style="color:var(--warn)">$'+money(c.held)+'</b></div>':'')+'<div class="'+(c.avail<0?'neg':'')+'"><small>可用餘額(扣保留展延)</small><b>$'+money(c.avail)+'</b></div><div><small>預算執行率</small><b>'+c.rate+'%</b></div><div><small>人次達成率</small><b>'+c.timeRate+'%</b></div><div><small>近期活動</small><b style="font-size:.9rem">'+esc(r.t)+'</b></div></div>'
-   +'<div class="tabs" role="tablist">'+tabs.map(function(t){return'<button role="tab" data-a="ptab" data-v="'+t[0]+'" aria-selected="'+(V.ptab===t[0])+'">'+t[1]+'</button>'}).join('')+'</div>'+body;
+   +(function(S0){return M?mqCard(p,c,r,S0):S0})('<div class="strip"><div><small>計畫書總預算</small><b>$'+money(c.total)+'</b></div><div><small>已核銷</small><b>$'+money(c.spent)+'</b></div>'+(c.HC.length?'<div><small>保留中(延展)</small><b style="color:var(--warn)">$'+money(c.held)+'</b></div>':'')+'<div class="'+(c.avail<0?'neg':'')+'"><small>可用餘額(扣保留展延)</small><b>$'+money(c.avail)+'</b></div><div><small>預算執行率</small><b>'+c.rate+'%</b></div><div><small>人次達成率</small><b>'+c.timeRate+'%</b></div><div><small>近期活動</small><b style="font-size:.9rem">'+esc(r.t)+'</b></div></div>')
+   +mqTabs(tabs,M)+body+(M?mqFab():'');
 }
 
 
@@ -1956,7 +2122,7 @@ function render(){
   else main=homeView(mine,'我的方案','你主責的所有方案,可用餘額與近期活動一目了然。',true);
   var nav=supOn()?[['sup','督導系統']]:[['home','我的方案']];
   var cur=V.tab==='project'?(V.from||'home'):V.tab;
-  app.innerHTML='<div class="top"><div class="wrap"><span class="brand">方案成果管理系統</span><nav class="nav" aria-label="主選單">'+nav.map(function(n){return'<button data-a="nav" data-v="'+n[0]+'"'+(cur===n[0]?' aria-current="true"':'')+'>'+n[1]+'</button>'}).join('')+'</nav><div class="who"><button class="btn sm" data-a="profile" title="修改顯示姓名與身分">'+esc(myName()||'設定姓名')+' ✎</button>'+window.__cloudButtons()+'<label for="rolesel" class="ro">身分</label><select id="rolesel" data-change="role">'+ROLES.map(function(r){return'<option'+(r===role?' selected':'')+'>'+r+'</option>'}).join('')+'</select></div></div></div>'
+  app.innerHTML='<div class="top"><div class="wrap"><span class="brand">方案成果管理系統</span><nav class="nav" aria-label="主選單">'+nav.map(function(n){return'<button data-a="nav" data-v="'+n[0]+'"'+(cur===n[0]?' aria-current="true"':'')+'>'+n[1]+'</button>'}).join('')+'</nav><div class="who"><button class="btn sm" data-a="profile" title="修改顯示姓名與身分">'+esc(myName()||'設定姓名')+' ✎</button>'+window.__cloudButtons()+(isMob()?'':'<label for="rolesel" class="ro">身分</label><select id="rolesel" data-change="role">'+ROLES.map(function(r){return'<option'+(r===role?' selected':'')+'>'+r+'</option>'}).join('')+'</select>')+'</div></div></div>'
    +'<main class="wrap">'+(canWrite?'':'<div class="note warn" style="margin-top:1rem">你目前是唯讀身分,可以瀏覽但不能修改資料。請向方案擁有者要求「協作者」權限。</div>')+main+'</main>';
   window.scrollTo(0,scr);
 }
@@ -1964,8 +2130,14 @@ function render(){
 /* ---------- actions ---------- */
 var A={
  nav:function(d){V.tab=d.v;V.pid=null;V.from=null;if(d.v==='sup'&&TS)supLoad(false);sched()},
- open:function(d){V.from=V.tab;V.tab='project';V.pid=d.id;V.ptab='plan';sched();window.scrollTo(0,0)},
+ open:function(d){V.from=V.tab;V.tab='project';V.pid=d.id;V.ptab=isMob()?'exp':'plan';V.mm=null;V.mmp=null;sched();window.scrollTo(0,0)},
  ptab:function(d){V.ptab=d.v;sched()},
+ mqmenu:function(){openMqMenu()},
+ mqgo:function(d){closeModal();V.ptab=d.v;sched();window.scrollTo(0,0)},
+ mmonth:function(d){V.mm=d.v;V.mmp=V.pid;sched()},
+ qexp:function(d){openQuick(d.b||'')},
+ qsave:function(){qSave()},
+ qundo:function(d){qUndo(d.id)},
  profile:function(){var cur=S.staff.get(uid)||{};openForm('profile',null,{id:uid,name:myName(),role:cur.role||'社工'})},
  release:async function(d){var x=S.carryovers.get(d.id);if(!x)return;var r=await ask('解除這筆保留(動支或不再保留),金額回到可用餘額。','解除保留',true);if(!r)return;await saveDoc('carryovers',x.id,{status:'已解除',resolvedAt:Date.now(),resolvedNote:r.note});toast('已解除保留')},
  poaver:function(d){V.ver=d.id;sched()},
