@@ -323,6 +323,21 @@ button.mq-tile:active{background:var(--accent-soft)}
 .mq-sheet .fld .help{font-size:.72rem;min-height:0}
 .mq-sheet .foot .btn{min-height:44px!important}
 @media print{.mq-fab{display:none}}
+
+.rdot{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;background:#e03131;margin-right:.4rem;vertical-align:middle;flex:none}
+.lgnote{max-height:none}
+.lgnote>.nh{font-weight:700;color:var(--accent);font-size:.9rem;display:flex;align-items:center}
+.lgnote .nl{display:grid;gap:.35rem;max-height:14rem;overflow-y:auto}
+.lgnote details.nd{background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.lgnote details.nd>summary{list-style:none;cursor:pointer;padding:.45rem .6rem;display:flex;align-items:center;gap:.3rem;font-size:.88rem;min-height:38px}
+.lgnote details.nd>summary::-webkit-details-marker{display:none}
+.lgnote details.nd>summary b{flex:1;min-width:0;overflow-wrap:anywhere}
+.lgnote details.nd>summary small{color:var(--muted);flex:none}
+.lgnote details.nd>summary::after{content:"▾";color:var(--muted);flex:none}
+.lgnote details.nd[open]>summary::after{content:"▴"}
+.lgnote details.nd .nb{padding:.1rem .7rem .6rem;font-size:.86rem;line-height:1.6;overflow-wrap:anywhere}
+.lgnote .nlock{font-size:.8rem;color:var(--bad)}
+#lgb[disabled]{opacity:.55;cursor:not-allowed}
 </style>
 
 </head>
@@ -366,6 +381,8 @@ async function funLoad(o){
   var td=new Date(),t=td.getFullYear()+'-'+p2(td.getMonth()+1)+'-'+p2(td.getDate()),list=null,cloud=false;
   try{var r=await api({action:'funlist'},10000);if(r&&r.ok&&Array.isArray(r.items)){list=r.items;cloud=true;try{localStorage.setItem('fangan_funcache',JSON.stringify(list))}catch(e){}}}catch(e){}
   if(!list){try{list=JSON.parse(localStorage.getItem('fangan_funcache')||'null');cloud=!!list}catch(e){}}
+  if(list&&o.__noticeWire)o.__noticeWire(noticeList(list));
+  if(list)list=list.filter(function(n){return!isNoticeItem(n)});
   if(!list||!list.length){list=FUN.filter(function(n){return n&&(n.text||n.img)&&(!n.until||t<=n.until)}).map(function(n,i){return Object.assign({id:'L'+i,local:1},n)})}
   if(!list.length||!document.body.contains(o))return;
   var last='';try{last=localStorage.getItem('fangan_lastfun')||''}catch(e){}
@@ -374,12 +391,47 @@ async function funLoad(o){
   funCard(box,n,n.local?n.img:'');
   if(!n.local&&n.hasImg){try{var ri=await api({action:'funimg',id:n.id},20000);if(ri&&ri.ok&&ri.img&&document.body.contains(o))funCard(box,n,ri.img)}catch(e){}}
 }
+/* 登入公告:存放在雲端(沿用小驚喜的儲存,credit 欄位以「§N|公告日|發布時間」標記),督導在「督導系統 → 秘 → 登入公告」新增/修改。
+   登入畫面:每則預設收合,未讀的標紅點;全部展開讀過之後,登入鈕才會啟用(已讀紀錄存在這台裝置)。 */
+function isNoticeItem(n){return!!n&&typeof n.credit==='string'&&n.credit.indexOf('§N|')===0}
+function noticeMeta(n){var a=String(n.credit||'').split('|');return{date:a[1]||'',t:Number(a[2])||0}}
+function seenGet(){try{return JSON.parse(localStorage.getItem('fangan_noticeseen')||'{}')||{}}catch(e){return{}}}
+function seenSet(id,t){var m=seenGet();m[id]=t||1;try{localStorage.setItem('fangan_noticeseen',JSON.stringify(m))}catch(e){}}
+function noticeList(list){
+  var td=new Date(),t=td.getFullYear()+'-'+p2(td.getMonth()+1)+'-'+p2(td.getDate());
+  return(list||[]).filter(function(n){return isNoticeItem(n)&&n.on!==false&&(n.title||n.text)&&(!n.until||t<=n.until)}).map(function(n){var m=noticeMeta(n);return{id:String(n.id),title:n.title||'公告',text:n.text||'',date:m.date,t:m.t}}).sort(function(a,b){return b.t-a.t||(a.date<b.date?1:-1)});
+}
+function noticeUnread(L){var m=seenGet();return L.filter(function(n){return!m[n.id]||m[n.id]<n.t})}
+function noticeHtmlCloud(L){
+  var un=noticeUnread(L),m=seenGet();
+  return'<div class="nh">'+(un.length?'<span class="rdot" aria-label="有未讀公告"></span>':'')+'📢 公告'+(un.length?'('+un.length+' 則未讀)':'')+'</div><div class="nl">'
+   +L.map(function(n){var isun=!m[n.id]||m[n.id]<n.t;return'<details class="nd" data-nid="'+esc(n.id)+'" data-nt="'+n.t+'"><summary>'+(isun?'<span class="rdot" aria-label="未讀"></span>':'')+'<b>'+esc(n.title)+'</b><small>'+esc(n.date)+'</small></summary><div class="nb">'+esc(n.text).replace(/\n/g,'<br>')+'</div></details>'}).join('')
+   +'</div><div class="nlock" id="lgnl"></div>';
+}
 function noticeHtml(){
   var td=new Date(),t=td.getFullYear()+'-'+p2(td.getMonth()+1)+'-'+p2(td.getDate());
   var L=NOTICES.filter(function(n){return n&&n.text&&(!n.until||t<=n.until)});
-  if(!L.length)return'';
-  return'<div class="lgnote" role="region" aria-label="公告"><h3>📢 公告</h3>'+L.map(function(n){return'<div class="it"><small>'+esc(n.date||'')+'</small>'+(n.title?'<b>'+esc(n.title)+'</b><br>':'')+esc(n.text).replace(/\n/g,'<br>')+'</div>'}).join('')+'</div>'}
-
+  var cached=null;try{cached=noticeList(JSON.parse(localStorage.getItem('fangan_funcache')||'null'))}catch(e){}
+  if(cached&&cached.length)return'<div class="lgnote" id="lgnotes" role="region" aria-label="公告">'+noticeHtmlCloud(cached)+'</div>';
+  if(!L.length)return'<div id="lgnotes"></div>';
+  return'<div class="lgnote" id="lgnotes" role="region" aria-label="公告"><h3>📢 公告</h3>'+L.map(function(n){return'<div class="it"><small>'+esc(n.date||'')+'</small>'+(n.title?'<b>'+esc(n.title)+'</b><br>':'')+esc(n.text).replace(/\n/g,'<br>')+'</div>'}).join('')+'</div>';
+}
+/* 套用公告清單到登入畫面:綁定展開事件、更新紅點、控制登入鈕 */
+function noticeWire(o,L,lockFn){
+  var box=o.querySelector('#lgnotes');if(!box)return;
+  if(!L.length){box.outerHTML='<div id="lgnotes"></div>';lockFn(0);return}
+  box.outerHTML='<div class="lgnote" id="lgnotes" role="region" aria-label="公告">'+noticeHtmlCloud(L)+'</div>';
+  box=o.querySelector('#lgnotes');
+  function refresh(){
+    var un=noticeUnread(L),m=seenGet();
+    box.querySelectorAll('details.nd').forEach(function(d){var u=!m[d.dataset.nid]||m[d.dataset.nid]<Number(d.dataset.nt);var dot=d.querySelector('summary .rdot');if(!u&&dot)dot.remove()});
+    var h=box.querySelector('.nh');h.innerHTML=(un.length?'<span class="rdot" aria-label="有未讀公告"></span>':'')+'📢 公告'+(un.length?'('+un.length+' 則未讀)':'');
+    var lk=box.querySelector('#lgnl');if(lk)lk.textContent=un.length?'請先展開並閱讀每一則未讀公告,登入鈕才會啟用。':'';
+    lockFn(un.length);
+  }
+  box.addEventListener('toggle',function(e){var d=e.target;if(d&&d.dataset&&d.dataset.nid&&d.open){seenSet(d.dataset.nid,Number(d.dataset.nt)||1);refresh()}},true);
+  refresh();
+}
 var VER='雲端版 v4.0',SKEY='fangan_sess',LKEY='fangan_lastuid',MAIL='takun_hakaw@worldvision.org.tw';
 window.__STANDALONE=true;
 
@@ -487,7 +539,9 @@ function loginFlow(prefUid,msg,lock){
      +'<button class="btn pri" id="lgb" type="submit" style="padding:.6rem">登入</button>'
      +'<div class="sub" style="margin:0;font-size:.78rem">'+VER+'。忘記密碼請聯絡系統管理員重設。</div></form>'+(lock?'':funHtml())+'</div>';
     document.body.appendChild(o);
-    var sel=o.querySelector('#lgu'),pw=o.querySelector('#lgp'),err=o.querySelector('#lge'),btn=o.querySelector('#lgb');
+    var sel=o.querySelector('#lgu'),pw=o.querySelector('#lgp'),err=o.querySelector('#lge'),btn=o.querySelector('#lgb'),noteLock=0;
+    function lockFn(n){noteLock=n;btn.disabled=n>0;btn.textContent=n>0?'請先閱讀公告('+n+')':'登入'}
+    if(!lock){o.__noticeWire=function(L){noticeWire(o,L,lockFn)};var c0=null;try{c0=noticeList(JSON.parse(localStorage.getItem('fangan_funcache')||'null'))}catch(e){}if(c0&&c0.length)noticeWire(o,c0,lockFn)}
     o.querySelector('#lgs').onchange=function(){pw.type=this.checked?'text':'password'};
     function setErr(t){err.textContent=t}
     async function loadUsers(){
@@ -502,7 +556,7 @@ function loginFlow(prefUid,msg,lock){
       }catch(e){sel.innerHTML='<option value="">(名單載入失敗)</option>';setErr('無法連線到雲端,請檢查網路後重新整理頁面。')}
     }
     o.querySelector('#lgf').onsubmit=async function(ev){
-      ev.preventDefault();if(!sel.value){setErr('請先選擇姓名');return}
+      ev.preventDefault();if(noteLock>0){setErr('請先展開並閱讀公告,才能登入。');return}if(!sel.value){setErr('請先選擇姓名');return}
       btn.disabled=true;btn.textContent='登入中…';setErr('');
       try{
         var r=await api({action:'login',uid:sel.value,pwd:pw.value},40000);
@@ -512,7 +566,7 @@ function loginFlow(prefUid,msg,lock){
           o.remove();resolve(s);return}
         setErr(r&&r.err==='locked'?'密碼錯誤次數過多,已暫時鎖定,請 '+(r.min||10)+' 分鐘後再試。':r&&r.err==='cred'?'密碼不正確'+(r.left!=null?'(還可再試 '+r.left+' 次)':'')+'。':'登入失敗,請稍後再試。');
       }catch(e){setErr('無法連線到雲端,請檢查網路後再試。')}
-      btn.disabled=false;btn.textContent='登入';pw.select();
+      btn.disabled=noteLock>0;btn.textContent=noteLock>0?'請先閱讀公告('+noteLock+')':'登入';pw.select();
     };
     loadUsers();funLoad(o);
   });
@@ -1004,6 +1058,9 @@ var ENT={
  funitem:{col:'staff',label:'小驚喜',fields:function(){return[{k:'title',l:'標題(選填)',t:'text'},{k:'text',l:'內文(可換行)',t:'long',help:'有趣的小知識、暖心小語、中心花絮都可以。'},{k:'emoji',l:'沒有照片時顯示的圖示',t:'text',ph:'例如 🐙'},{k:'photo',l:'照片(選填)',t:'photo',help:'登入前的畫面所有人都看得到,請使用自己拍攝或已取得授權的照片,避免出現兒童可辨識的面孔。'},{k:'credit',l:'照片來源/說明(選填)',t:'text'},{k:'until',l:'到期日(選填)',t:'date',help:'過了這天(含當天)就不再顯示;留空代表一直顯示。'},{k:'on',l:'狀態',t:'select',opts:[{v:'1',l:'顯示中'},{v:'0',l:'停用(暫不顯示)'}]}]},init:function(){return{on:'1'}},
   validate:function(v){if(!String(v.text||'').trim()&&!v.photo)return'請至少填寫內文或上傳照片。'},
   save:async function(v,old){var item={id:old&&old.id,title:v.title,text:v.text,emoji:v.emoji,credit:v.credit,until:v.until,on:v.on!=='0'},img;if(v.photo&&!(old&&old.photo===v.photo))img=v.photo;else if(!v.photo&&old&&old.hasImg)img=null;await window.__fun.save(item,img);toast('已儲存');SEC.items=null;secLoad()}},
+ noticeitem:{col:'staff',label:'登入公告',fields:function(pid,x){var f=[{k:'title',l:'標題',t:'text',req:1},{k:'text',l:'內容(可換行,登入畫面預設收合)',t:'long',req:1},{k:'date',l:'公告日期',t:'date',req:1},{k:'until',l:'到期日(選填)',t:'date',help:'過了這天(含當天)就不再顯示;留空代表一直顯示。'},{k:'on',l:'狀態',t:'select',opts:[{v:'1',l:'顯示中'},{v:'0',l:'停用(暫不顯示)'}]},{k:'renew',l:'未讀標示',t:'select',opts:[{v:'1',l:'標為新公告(所有人登入時會再看到紅點)'},{v:'0',l:'只修正文字(已讀的人不再出現紅點)'}]}];return f},
+  init:function(){return{on:'1',date:today(),renew:'1'}},
+  save:async function(v,old){var t=(!old||v.renew==='1')?Date.now():(Number(old.nt)||Date.now());var item={id:old&&old.id,title:v.title,text:v.text,emoji:'📢',credit:'§N|'+v.date+'|'+t,until:v.until,on:v.on!=='0'};await window.__fun.save(item);toast('公告已儲存');SEC.items=null;secLoad()}},
  supnote:{col:'projects',label:'督導意見',fields:function(){return[{k:'supNote',l:'督導意見',t:'long'}]}}
 };
 
@@ -2322,14 +2379,28 @@ async function secLoad(){if(SEC.loading)return;SEC.loading=true;SEC.err='';sched
   var need=(SEC.items||[]).filter(function(x){return x.hasImg&&!SEC.imgs[x.id]});for(var i=0;i<need.length;i++){try{SEC.imgs[need[i].id]=await window.__fun.img(need[i].id);sched()}catch(e){}}}
 function supSec(){
   if(!SEC.items&&!SEC.loading&&!SEC.err)setTimeout(secLoad,0);
-  var td=today(),h='<div class="note info">這裡設定的內容會顯示在<b>登入畫面右側的「今日小驚喜」</b>:每次開啟登入頁隨機挑一則(盡量與上次不同)。可放文字與照片、設定到期日,也可暫時停用。登入前的畫面所有人都看得到,請勿放入個資,照片請使用自己拍攝或已取得授權的內容,並避免出現兒童可辨識的面孔。</div>'
-   +'<div class="bar nosp"><span class="rem">'+(SEC.loading?'載入中…':SEC.items?'共 '+SEC.items.length+' 則':'')+'</span><span class="actions"><button class="btn sm" data-a="secRefresh">↻ 重新載入</button><button class="btn pri sm" data-a="secNew">＋ 新增小驚喜</button></span></div>';
+  var ss=SV.secsub==='fun'?'fun':'notice',sw='<div class="seg nosp" role="group" aria-label="設定項目" style="margin-bottom:.8rem"><button data-a="secsub" data-v="notice" aria-pressed="'+(ss==='notice')+'">📢 登入公告</button><button data-a="secsub" data-v="fun" aria-pressed="'+(ss==='fun')+'">🌿 小驚喜</button></div>';
+  if(ss==='notice')return sw+supNotice();
+  var td=today(),FI=(SEC.items||[]).filter(function(x){return!isNoticeItem(x)}),h=sw+'<div class="note info">這裡設定的內容會顯示在<b>登入畫面右側的「今日小驚喜」</b>:每次開啟登入頁隨機挑一則(盡量與上次不同)。可放文字與照片、設定到期日,也可暫時停用。登入前的畫面所有人都看得到,請勿放入個資,照片請使用自己拍攝或已取得授權的內容,並避免出現兒童可辨識的面孔。</div>'
+   +'<div class="bar nosp"><span class="rem">'+(SEC.loading?'載入中…':SEC.items?'共 '+FI.length+' 則':'')+'</span><span class="actions"><button class="btn sm" data-a="secRefresh">↻ 重新載入</button><button class="btn pri sm" data-a="secNew">＋ 新增小驚喜</button></span></div>';
   if(SEC.err)h+='<div class="note bad" role="alert">'+esc(SEC.err)+'(若顯示「雲端程式尚未更新」,請把 fun_addon.gs 貼進 Apps Script 並重新部署)</div>';
   if(!SEC.items)return h;
-  if(!SEC.items.length)return h+'<div class="empty"><b>還沒有設定小驚喜</b>登入畫面目前使用系統內建的備用內容。按「新增小驚喜」建立第一則。</div>';
-  return h+'<div class="tw"><table><thead><tr><th>預覽</th><th>內容</th><th>到期日</th><th>狀態</th><th></th></tr></thead><tbody>'+SEC.items.map(function(x){
+  if(!FI.length)return h+'<div class="empty"><b>還沒有設定小驚喜</b>登入畫面目前使用系統內建的備用內容。按「新增小驚喜」建立第一則。</div>';
+  return h+'<div class="tw"><table><thead><tr><th>預覽</th><th>內容</th><th>到期日</th><th>狀態</th><th></th></tr></thead><tbody>'+FI.map(function(x){
     var exp=x.until&&td>x.until,st=x.on===false?'<span class="pill draft">已停用</span>':exp?'<span class="pill bad">已到期</span>':'<span class="pill run">顯示中</span>';
     return'<tr><td style="width:6rem">'+(SEC.imgs[x.id]?'<img class="thumb" src="'+esc(SEC.imgs[x.id])+'" alt="">':x.hasImg?'<span class="rem">載入中…</span>':'<span style="font-size:2rem">'+esc(x.emoji||'🌱')+'</span>')+'</td><td><b>'+esc(x.title||'(無標題)')+'</b><div class="rem rest">'+esc(String(x.text||'').slice(0,120))+'</div></td><td>'+esc(x.until||'—')+'</td><td>'+st+'</td><td class="act"><button class="btn sm" data-a="secEdit" data-id="'+esc(x.id)+'">編輯</button> <button class="btn sm" data-a="secToggle" data-id="'+esc(x.id)+'">'+(x.on===false?'啟用':'停用')+'</button> <button class="btn sm bad" data-a="secDel" data-id="'+esc(x.id)+'">刪除</button></td></tr>'}).join('')+'</tbody></table></div>'}
+function isNoticeItem(n){return!!n&&typeof n.credit==='string'&&n.credit.indexOf('§N|')===0}
+function noticeMetaA(n){var a=String(n.credit||'').split('|');return{date:a[1]||'',t:Number(a[2])||0}}
+function supNotice(){
+  var td=today(),NI=(SEC.items||[]).filter(isNoticeItem).map(function(x){var m=noticeMetaA(x);return Object.assign({},x,{date:m.date,nt:m.t})}).sort(function(a,b){return b.nt-a.nt}),
+  h='<div class="note info">這裡新增的公告會顯示在<b>登入畫面</b>:每則預設收合,只看得到標題;使用者有<b>未讀公告</b>時會標紅點,且必須把每則未讀公告展開閱讀後,<b>登入鈕才會啟用</b>。修改公告時可選擇是否「標為新公告」(重新出現紅點)。已讀紀錄存在使用者各自的裝置上。登入前所有人都看得到,請勿放入個資。</div>'
+   +'<div class="bar nosp"><span class="rem">'+(SEC.loading?'載入中…':SEC.items?'共 '+NI.length+' 則':'')+'</span><span class="actions"><button class="btn sm" data-a="secRefresh">↻ 重新載入</button><button class="btn pri sm" data-a="noteNew">＋ 新增公告</button></span></div>';
+  if(SEC.err)h+='<div class="note bad" role="alert">'+esc(SEC.err)+'</div>';
+  if(!SEC.items)return h;
+  if(!NI.length)return h+'<div class="empty"><b>還沒有登入公告</b>按「新增公告」建立第一則。</div>';
+  return h+'<div class="tw"><table><thead><tr><th>公告日期</th><th>標題 / 內容</th><th>到期日</th><th>狀態</th><th></th></tr></thead><tbody>'+NI.map(function(x){
+    var exp=x.until&&td>x.until,st=x.on===false?'<span class="pill draft">已停用</span>':exp?'<span class="pill bad">已到期</span>':'<span class="pill run">顯示中</span>';
+    return'<tr><td>'+esc(x.date||'—')+'</td><td><b>'+esc(x.title||'(無標題)')+'</b><div class="rem rest">'+esc(String(x.text||'').slice(0,120))+'</div></td><td>'+esc(x.until||'—')+'</td><td>'+st+'</td><td class="act"><button class="btn sm" data-a="noteEdit" data-id="'+esc(x.id)+'">編輯</button> <button class="btn sm" data-a="secToggle" data-id="'+esc(x.id)+'">'+(x.on===false?'啟用':'停用')+'</button> <button class="btn sm bad" data-a="noteDel" data-id="'+esc(x.id)+'">刪除</button></td></tr>'}).join('')+'</tbody></table></div>'}
 var SV={rsel:{},rbusy:false,rmsg:'',rerr:'',sub:'poa',fy:'',center:'',owner:'',st:'',warn:false,mon:'',mp:'',mo:'',ms:'',mq:'',mph:false,sel:{},rep:false,phRun:false,phDone:0,phTot:0,phErr:''};
 function supOn(){return!!(window.__isSup&&window.__isSup())}
 var POAON=false; /* 年度 POA 只在督導系統內有效:督導自己建置的 POA(自己的資料) + 全中心社工的方案/預算/核銷(TS) 合成一份唯讀+可寫的視圖 */
@@ -2697,6 +2768,10 @@ document.addEventListener('input',function(e){var t=e.target;if(t&&t.hasAttribut
 Object.assign(A,{
   supsub:function(d){SV.sub=d.v;if(d.v==='sec'&&!SEC.items)secLoad();sched()},
   secNew:function(){openForm('funitem',null,null)},
+  secsub:function(d){SV.secsub=d.v;sched()},
+  noteNew:function(){openForm('noticeitem',null,null)},
+  noteEdit:function(d){var it=(SEC.items||[]).filter(function(x){return x.id===d.id})[0];if(!it)return;var m=noticeMetaA(it);openForm('noticeitem',null,Object.assign({},it,{date:m.date||today(),nt:m.t,on:it.on===false?'0':'1',renew:'0'}))},
+  noteDel:async function(d){var ok=await ask('刪除這則公告?無法復原。','刪除');if(!ok)return;try{await window.__fun.del(d.id);toast('已刪除');SEC.items=null;secLoad()}catch(e){toast(String(e&&e.message||e))}},
   secEdit:function(d){var it=(SEC.items||[]).filter(function(x){return x.id===d.id})[0];if(it)openForm('funitem',null,Object.assign({},it,{photo:SEC.imgs[it.id]||'',on:it.on===false?'0':'1'}))},
   secToggle:async function(d){var it=(SEC.items||[]).filter(function(x){return x.id===d.id})[0];if(!it)return;try{await window.__fun.save(Object.assign({},it,{on:it.on===false}));toast(it.on===false?'已設為顯示':'已停用');SEC.items=null;secLoad()}catch(e){toast(String(e&&e.message||e))}},
   secDel:async function(d){var ok=await ask('刪除這則小驚喜(含照片)?無法復原。','刪除');if(!ok)return;try{await window.__fun.del(d.id);toast('已刪除');SEC.items=null;secLoad()}catch(e){toast(String(e&&e.message||e))}},
