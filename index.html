@@ -292,6 +292,36 @@ body{margin:0;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-
 .mq-menu .btn{text-align:left;min-height:48px;font-size:1rem}
 .mq-rec{border:1px dashed var(--line);border-radius:8px;padding:.4rem .6rem;display:grid;gap:.2rem;font-size:.85rem}
 .mq-rec div{display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+
+.mq-tabs{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.4rem;margin-block:.8rem}
+.mq-tabs button{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:.45rem .3rem;cursor:pointer;display:grid;gap:0;text-align:center;min-height:52px;align-content:center;color:var(--fg)}
+.mq-tabs button b{font-size:.95rem}
+.mq-tabs button small{color:var(--muted);font-size:.72rem;font-variant-numeric:tabular-nums}
+.mq-tabs button[aria-expanded="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.mq-tabs button[aria-expanded="true"] small{color:var(--accent-fg);opacity:.85}
+.mq-tabs .mq-more{padding:.45rem .8rem;font-size:1.3rem;font-weight:700}
+.mq-grid{display:grid;grid-template-columns:1fr 1fr;gap:.5rem}
+.mq-tile{aspect-ratio:1/1;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:.55rem;display:flex;flex-direction:column;justify-content:space-between;text-align:left;color:var(--fg);min-width:0;font:inherit}
+button.mq-tile{cursor:pointer}
+button.mq-tile:active{background:var(--accent-soft)}
+.mq-tile .n{font-size:.92rem;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.mq-tile .v{font-size:1.35rem;font-weight:700;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.mq-tile small{color:var(--muted);font-size:.72rem;line-height:1.35}
+.mq-tile.hi{border-color:#d08a00;background:var(--warn-bg)}
+.mq-tile.neg{border-color:var(--bad);background:var(--bad-bg)}
+.mq-tile.neg .v{color:var(--bad)}
+.mq-ev>summary{gap:.5rem;font-weight:500;padding:.55rem .8rem;min-height:44px}
+.mq-ev>summary .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mq-ev>summary .pill{flex:none}
+.mq-ev>summary::after{flex:none}
+.mq-ev{margin-bottom:.5rem}
+.mq-evb .ev{border:0;padding:.6rem .8rem;margin:0}
+.mq-fab{width:56px;height:56px;min-height:56px;padding:0;border-radius:50%;font-size:1.3rem;font-weight:700;display:flex;align-items:center;justify-content:center}
+.mq-body{padding:.7rem .9rem;gap:.55rem}
+.mq-sheet .fld label{margin-bottom:.1rem}
+.mq-sheet .fld input,.mq-sheet .fld select{min-height:40px;padding:.3rem .5rem}
+.mq-sheet .fld .help{font-size:.72rem;min-height:0}
+.mq-sheet .foot .btn{min-height:44px!important}
 @media print{.mq-fab{display:none}}
 </style>
 
@@ -640,7 +670,7 @@ function sched(){if(raf)return;raf=requestAnimationFrame(function(){raf=0;render
 /* ---------- 手機版精簡介面 ---------- */
 var MQ=window.matchMedia?window.matchMedia('(max-width:700px)'):null;
 function isMob(){return!!(MQ&&MQ.matches)}
-V.mm=null;V.mmp=null;V.fold={};
+V.mm=null;V.mmp=null;V.fold={};V.mqp=null;
 if(MQ){var mqf=function(){sched()};if(MQ.addEventListener)MQ.addEventListener('change',mqf);else if(MQ.addListener)MQ.addListener(mqf)}
 document.addEventListener('toggle',function(e){var d=e.target;if(d&&d.dataset&&d.dataset.fk)V.fold[d.dataset.fk]=d.open},true);
 var MQ_HIDDEN=['plan','budget','res','report'];
@@ -651,29 +681,37 @@ function mqMonths(p,c){var s={};c.B.forEach(function(b){if(b.month)s[b.month]=1}
 function mqMonth(p,c){var ms=mqMonths(p,c);if(V.mmp!==p.id){V.mmp=p.id;V.mm=null}if(V.mm&&ms.indexOf(V.mm)>=0)return V.mm;var cur=curMonthKey();return ms.indexOf(cur)>=0?cur:ms[0]}
 function mqSeg(p,c){var sel=mqMonth(p,c),cur=curMonthKey();return'<div class="seg mq-seg" role="group" aria-label="月份">'+mqMonths(p,c).map(function(m){return'<button data-a="mmonth" data-v="'+m+'" aria-pressed="'+(sel===m)+'">'+esc(m)+(m===cur?'・本月':'')+'</button>'}).join('')+'</div>'}
 function mqFold(key,title,html){return'<details class="mq-fold" data-fk="'+key+'"'+(V.fold[key]?' open':'')+'><summary>'+esc(title)+'</summary>'+html+'</details>'}
-function mqTabs(tabs,M){
-  var h=function(list){return list.map(function(t){return'<button role="tab" data-a="ptab" data-v="'+t[0]+'" aria-selected="'+(V.ptab===t[0])+'">'+t[1]+'</button>'}).join('')};
-  if(!M)return'<div class="tabs" role="tablist">'+h(tabs)+'</div>';
-  var show=tabs.filter(function(t){return MQ_HIDDEN.indexOf(t[0])<0}),cur=tabs.filter(function(t){return MQ_HIDDEN.indexOf(t[0])>=0&&t[0]===V.ptab})[0];
-  return'<div class="tabs mq-tabs" role="tablist">'+h(show)+'<button role="tab" data-a="mqmenu" aria-selected="'+(!!cur)+'" aria-haspopup="dialog">☰ '+(cur?cur[1]:'更多')+'</button></div>';
+function mqTabs(p,c){
+  var m=mqMonth(p,c),np=noPlanOf(p),bs=c.B.filter(function(b){return b.month===m}),t=sum(bs,'total'),SM=spentByMonth(p.id),HM=heldByMonth(p.id),MV=moveByMonth(p.id);
+  var sp=np?sum(c.E.filter(function(x){return expMonthOf(x)===m}),'amount'):(SM[m]||0),left=t-sp-(HM[m]||0)-(MV.o[m]||0)+(MV.i[m]||0);
+  var nExp=c.E.filter(function(x){return expMonthOf(x)===m}).length;
+  var B=[['bud','本月預算',np?'':'剩 '+sm(left)],['exp','核銷',nExp+' 筆'],['events','場次',c.EV.length+' 場']];
+  var hid=MQ_HIDDEN.indexOf(V.mqp)>=0;
+  return'<div class="mq-tabs" role="group" aria-label="方案內容">'+B.map(function(b){var on=V.mqp===b[0];return'<button type="button" data-a="mqtab" data-v="'+b[0]+'" aria-expanded="'+on+'"><b>'+b[1]+'</b><small>'+esc(b[2])+'</small></button>'}).join('')
+   +'<button type="button" class="mq-more" data-a="mqmenu" aria-label="其他功能" aria-haspopup="dialog"'+(hid?' aria-expanded="true"':'')+'>⋯</button></div>';
 }
-function mqFab(){return canWrite?'<div style="height:5rem"></div><button type="button" class="btn pri mq-fab" data-a="qexp">＋ 記一筆核銷</button>':''}
+function mqPanel(p,c,r,stripH){
+  var k=V.mqp;if(!k)return'';
+  if(k==='bud')return mqCard(p,c,r,stripH);
+  var f={plan:planTab,budget:budgetTab,events:eventTab,exp:expTab,res:resTab,report:reportTab}[k];
+  return f?f(p,c):'';
+}
+function mqEv(e,actual,html){var d=(e.date||'').split('-'),dd=d.length>2?(+d[1])+'/'+(+d[2]):'',st=evSt(e);
+  return'<details class="mq-fold mq-ev" data-fk="ev_'+e.id+'"'+(V.fold['ev_'+e.id]?' open':'')+'><summary><span class="t"><b>'+esc(dd)+'</b> '+esc(e.name)+'</span><span class="pill '+(st==='已辦理'?'run':st==='取消'?'draft':'info')+'">'+esc(st)+(actual?'・'+actual+'人':'')+'</span></summary><div class="mq-evb">'+html+'</div></details>'}
+function mqFab(){return canWrite?'<div style="height:5rem"></div><button type="button" class="btn pri mq-fab" data-a="qexp" aria-label="記一筆核銷">記</button>':''}
 function mqCard(p,c,r,stripH){
   var m=mqMonth(p,c),np=noPlanOf(p),SM=spentByMonth(p.id),HM=heldByMonth(p.id),MV=moveByMonth(p.id);
   var bs=by(c.B.filter(function(b){return b.month===m}),'no');
   var t=sum(bs,'total'),mi=MV.i[m]||0,mo=MV.o[m]||0,h=HM[m]||0;
   var sp=np?sum(c.E.filter(function(x){return expMonthOf(x)===m}),'amount'):(SM[m]||0);
   var left=t-sp-h-mo+mi,rate=t?Math.min(100,Math.max(0,pct(sp-mi,t))):0;
-  var items=bs.map(function(b){var x=budgetCalc(b),pr=b.total?Math.min(100,Math.max(0,pct(x.spent+x.held,b.total))):0;
-    return'<div class="mq-item'+(x.left<0?' neg':'')+'"><div class="mq-it"><b>'+esc(b.item)+'</b><small>'+esc(catOf(b))+((Number(b.qty)>1||b.unit)?' ・ '+money(b.price)+'×'+esc(b.qty)+esc(b.unit||''):'')+'</small></div>'
-     +'<div class="mq-am"><b>剩 '+sm(x.left)+'</b><small>已核 $'+money(x.spent)+' / $'+money(b.total)+(x.held?' ・ 保留 $'+money(x.held):'')+'</small></div>'
-     +'<div class="meter'+(pr>=100?' over':pr>=85?' hi':'')+'"><i style="width:'+pr+'%"></i></div>'
-     +(canWrite?'<button type="button" class="btn sm" data-a="qexp" data-b="'+b.id+'">＋ 記一筆</button>':'')+'</div>'});
+  var items=bs.map(function(b){var x=budgetCalc(b),pr=b.total?pct(x.spent+x.held,b.total):0,cls='mq-tile'+(x.left<0?' neg':pr>=85?' hi':''),
+    inner='<b class="n">'+esc(b.item)+'</b><span class="v">'+sm(x.left)+'</span><small>已核 $'+money(x.spent)+' / $'+money(b.total)+(x.held?'<br>保留 $'+money(x.held):'')+'</small>';
+    return canWrite?'<button type="button" class="'+cls+'" data-a="qexp" data-b="'+b.id+'" aria-label="記一筆:'+esc(b.item)+'">'+inner+'</button>':'<div class="'+cls+'">'+inner+'</div>'});
   var body=np?'<div class="note info" style="margin:0">本方案無須計畫書,不分預算項目;核銷請按「＋ 記一筆核銷」填寫費用說明。</div>'
-    :items.length?'<div class="mq-items">'+items.join('')+'</div>':'<p class="hint" style="margin:0">'+esc(m)+' 沒有編列預算項目。可從上方切換月份,或到「☰ 預算」新增。</p>';
+    :items.length?'<div class="mq-grid">'+items.join('')+'</div><p class="hint" style="margin:0;font-size:.78rem">點方格即可記一筆;大字為該項目剩餘款。</p>':'<p class="hint" style="margin:0">'+esc(m)+' 沒有編列預算項目。可從上方切換月份,或到「☰ 預算」新增。</p>';
   return'<section class="mq-card" aria-label="本月預算分析">'+mqSeg(p,c)
    +'<div class="mq-nums"><div><small>'+esc(monthFull(p.id,m))+' 預算</small><b>'+(np?'—':'$'+money(t))+'</b></div><div><small>已核銷</small><b>$'+money(sp)+'</b></div><div class="'+(left<0&&!np?'neg':'')+'"><small>剩餘</small><b>'+(np?'—':sm(left))+'</b></div></div>'
-   +(np?'':'<div class="meter'+(rate>=100?' over':rate>=85?' hi':'')+'"><i style="width:'+rate+'%"></i></div>')
    +'<div class="rem'+(r.today?' today':'')+'">'+esc(r.t)+'</div>'
    +(c.overdue.length?'<div class="note bad" style="margin:0">有 '+c.overdue.length+' 筆保留經費已到期,請到「核銷與展延」處理。</div>':'')
    +body
@@ -746,7 +784,7 @@ function openMqMenu(){
   var p=S.projects.get(V.pid);if(!p)return;var c=calc(p.id);
   var items=[['plan','📄 計畫書'],['budget','💰 預算'+(c.poaOver?' ⚠':'')],['res','🎁 資源與回饋'],['report','📑 成果報告']];
   document.getElementById('layer').innerHTML='<div class="ov mq-ov" data-a="ovclose"><div class="modal mq-sheet" role="dialog" aria-modal="true" aria-labelledby="mt"><header id="mt"><span>其他功能</span><button type="button" class="btn sm" data-a="mclose">關閉</button></header><div class="mq-menu">'
-    +items.map(function(t){return'<button type="button" class="btn'+(V.ptab===t[0]?' pri':'')+'" data-a="mqgo" data-v="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div></div></div>';
+    +items.map(function(t){return'<button type="button" class="btn'+(V.mqp===t[0]?' pri':'')+'" data-a="mqgo" data-v="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div></div></div>';
   modalOpen=true;modalDirty=false;
 }
 
@@ -1055,7 +1093,7 @@ function openForm(entKey,pid,old,extra){
       if(entKey==='project'&&!old){v.owner=uid;v.status='執行中';v.approvals={}}
       var id=await saveDoc(E.col,old&&old.id,v);
       closeModal();
-      if(entKey==='project'&&!old){V.tab='project';V.pid=id;V.ptab='plan'}
+      if(entKey==='project'&&!old){V.tab='project';V.pid=id;V.ptab='plan';V.mqp='plan'}
       sched();
     }catch(e){btn.disabled=false}
   });
@@ -1097,7 +1135,7 @@ function homeView(list,title,sub,showNew){
 function statusActions(p,c){
   var h='',role=myRole();
   if(!canWrite)return'';
-  if(pst(p)==='執行中')h+='<button class="btn" data-a="closeProj">方案結案</button>';
+  if(pst(p)==='執行中'&&!isMob())h+='<button class="btn" data-a="closeProj">方案結案</button>';
   if(p.status==='結案待報告')h+='<button class="btn pri" data-a="download">下載成果報告</button><button class="btn" data-a="finish">標記已結案</button>';
   if(p.status==='已結案')h+='<button class="btn" data-a="download">下載成果報告</button>';
   return h;
@@ -1171,11 +1209,12 @@ function eventTab(p,c){
     var at=c.T.filter(function(t){return t.eventId===e.id}),actual=sum(at,'times');
     var chips=at.map(function(t){return'<span class="chip">'+esc(t.kind)+' '+esc(t.times)+' 人'+((t.hhRoster||[]).length?' / '+t.hhRoster.length+' 戶':'')+(canWrite?'<button data-a="attEdit" data-id="'+t.id+'" aria-label="編輯">編輯</button><button data-a="del" data-e="attendance" data-id="'+t.id+'" aria-label="刪除">×</button>':'')+'</span>'}).join('');
     var sp=sum(c.E.filter(function(x){return x.eventId===e.id}),'amount');
-    return'<div class="ev"><div class="h"><b>'+esc(evDate(e))+' '+esc(e.start||'')+(e.end?'–'+esc(e.end):'')+'  '+esc(e.name)+'</b><span><span class="pill '+(evSt(e)==='已辦理'?'run':evSt(e)==='取消'?'draft':'info')+'">'+esc(evSt(e))+'</span> '+(canWrite&&evSt(e)==='未辦理'?'<button class="btn sm" data-a="evDone" data-id="'+e.id+'">標記已辦理</button> ':'')+(canWrite?'<button class="btn sm" data-a="copyEvent" data-id="'+e.id+'">複製</button> ':'')+rowBtns('event',e.id)+'</span></div>'
+    var evh='<div class="ev"><div class="h"><b>'+esc(evDate(e))+' '+esc(e.start||'')+(e.end?'–'+esc(e.end):'')+'  '+esc(e.name)+'</b><span><span class="pill '+(evSt(e)==='已辦理'?'run':evSt(e)==='取消'?'draft':'info')+'">'+esc(evSt(e))+'</span> '+(canWrite&&evSt(e)==='未辦理'?'<button class="btn sm" data-a="evDone" data-id="'+e.id+'">標記已辦理</button> ':'')+(canWrite?'<button class="btn sm" data-a="copyEvent" data-id="'+e.id+'">複製</button> ':'')+rowBtns('event',e.id)+'</span></div>'
      +'<div class="rem">地點 '+esc(e.place||'未填')+' ・ 負責 '+esc(e.owner||'未填')+' ・ 預計 '+(e.plannedPeople!=null?esc(e.plannedPeople):'—')+' 人 ・ 實到 '+actual+' 人'+(e.plannedPeople?'('+pct(actual,e.plannedPeople)+'%)':'')+(sp?' ・ 本場支出 $'+money(sp):'')+(e.note?' ・ '+esc(e.note):'')+'</div>'
      +(e.content?'<div class="rest" style="margin-top:.3rem">'+esc(e.content)+'</div>':'')
      +(e.summary?'<div class="rest" style="margin-top:.3rem"><b>執行概況</b>:'+esc(e.summary)+'</div>':'')+evPhotoStrip(e)
-     +'<div class="chips">'+chips+(canWrite?'<button class="btn sm" data-a="attAdd" data-event="'+e.id+'">＋ 登記出席</button>':'')+'</div></div>'});
+     +'<div class="chips">'+chips+(canWrite?'<button class="btn sm" data-a="attAdd" data-event="'+e.id+'">＋ 登記出席</button>':'')+'</div></div>';
+    return isMob()?mqEv(e,actual,evh):evh});
   var kinds=KINDS.filter(function(k){return c.T.some(function(t){return t.kind===k})});
   var planned=sum(c.EV.filter(function(e){return e.status!=='取消'}),'plannedPeople');
   var st=kinds.map(function(k){var ts=c.T.filter(function(t){return t.kind===k}),times=sum(ts,'times'),a=c.A.filter(function(x){return x.kind===k})[0],u=uniq(p.id,k,'roster'),hu=uniq(p.id,k,'hhRoster'),people=u?u:(a?(Number(a.actPeople)||0):0);
@@ -1345,15 +1384,15 @@ function reportDoc(p,c){
 
 /* ---------- project view ---------- */
 function projectView(p){
-  var c=calc(p.id),r=reminder(c),M=isMob();
+  var c=calc(p.id),r=reminder(c),M=isMob(),STRIPH='';
   var tabs=[['plan','計畫書'],['budget','預算'+(c.poaOver?' ⚠':'')],['events','活動場次'],['exp','核銷與展延'],['res','資源與回饋'],['report','成果報告']];
   var logs=Object.keys(p.approvals||{}).map(function(k){var a=p.approvals[k];return esc(k)+(a.ok===false?'退回':'同意')+(a.note?'('+esc(a.note)+')':'')}).join(' ・ ');
-  var body={plan:planTab,budget:budgetTab,events:eventTab,exp:expTab,res:resTab,report:reportTab}[V.ptab](p,c);
+  var body=M?'':{plan:planTab,budget:budgetTab,events:eventTab,exp:expTab,res:resTab,report:reportTab}[V.ptab](p,c);
   return'<div class="crumb"><button data-a="nav" data-v="'+(V.from||'home')+'">← 返回'+(V.from==='all'?'全部方案':V.from==='review'?'待審核':V.from==='poa'?'年度 POA':'我的方案')+'</button></div>'
    +'<div class="phead"><div><h1>'+esc(p.name)+'</h1><div class="sub" style="margin:0">'+esc(p.center)+' ・ '+esc(p.fy||'FY26')+' '+esc(p.month)+' ・ 編碼 '+esc(p.code)+' ・ 主責 '+esc(ownerName(p))+'</div></div><div class="actions"><span class="pill '+pillCls(pst(p))+'">'+esc(pst(p))+'</span>'+statusActions(p,c)+(!M&&canWrite&&(p.owner===uid||myRole()!=='社工')?'<button class="btn sm bad" data-a="delProject">刪除方案</button>':'')+'</div></div>'
    
-   +(function(S0){return M?mqCard(p,c,r,S0):S0})('<div class="strip"><div><small>計畫書總預算</small><b>$'+money(c.total)+'</b></div><div><small>已核銷</small><b>$'+money(c.spent)+'</b></div>'+(c.HC.length?'<div><small>保留中(延展)</small><b style="color:var(--warn)">$'+money(c.held)+'</b></div>':'')+'<div class="'+(c.avail<0?'neg':'')+'"><small>可用餘額(扣保留展延)</small><b>$'+money(c.avail)+'</b></div><div><small>預算執行率</small><b>'+c.rate+'%</b></div><div><small>人次達成率</small><b>'+c.timeRate+'%</b></div><div><small>近期活動</small><b style="font-size:.9rem">'+esc(r.t)+'</b></div></div>')
-   +mqTabs(tabs,M)+body+(M?mqFab():'');
+   +(function(S0){STRIPH=S0;return M?'':S0})('<div class="strip"><div><small>計畫書總預算</small><b>$'+money(c.total)+'</b></div><div><small>已核銷</small><b>$'+money(c.spent)+'</b></div>'+(c.HC.length?'<div><small>保留中(延展)</small><b style="color:var(--warn)">$'+money(c.held)+'</b></div>':'')+'<div class="'+(c.avail<0?'neg':'')+'"><small>可用餘額(扣保留展延)</small><b>$'+money(c.avail)+'</b></div><div><small>預算執行率</small><b>'+c.rate+'%</b></div><div><small>人次達成率</small><b>'+c.timeRate+'%</b></div><div><small>近期活動</small><b style="font-size:.9rem">'+esc(r.t)+'</b></div></div>')
+   +(M?mqTabs(p,c)+mqPanel(p,c,r,STRIPH)+mqFab():'<div class="tabs" role="tablist">'+tabs.map(function(t){return'<button role="tab" data-a="ptab" data-v="'+t[0]+'" aria-selected="'+(V.ptab===t[0])+'">'+t[1]+'</button>'}).join('')+'</div>'+body);
 }
 
 
@@ -1925,7 +1964,7 @@ async function bookGo(){
         if(key==='event'&&!d.place)d.place=(bd&&bd.place)||(S.projects.get(pid)||{}).place||'';
         await saveDoc(col,null,d);done++}}
     closeModal();
-    if(mode==='new'){for(var w=0;w<40&&!S.projects.get(pid);w++)await new Promise(function(r){setTimeout(r,100)});V.from='home';V.tab='project';V.pid=pid;V.ptab='plan';window.scrollTo(0,0)}
+    if(mode==='new'){for(var w=0;w<40&&!S.projects.get(pid);w++)await new Promise(function(r){setTimeout(r,100)});V.from='home';V.tab='project';V.pid=pid;V.ptab='plan';V.mqp='plan';window.scrollTo(0,0)}
     toast('已匯入 '+done+' 筆');sched();
   }catch(e){go.disabled=false;go.textContent='重新匯入';er.textContent='匯入中斷,已成功 '+done+' 筆。請檢查後再試(已匯入的資料請勿重複匯入)。'}
 }
@@ -2130,10 +2169,11 @@ function render(){
 /* ---------- actions ---------- */
 var A={
  nav:function(d){V.tab=d.v;V.pid=null;V.from=null;if(d.v==='sup'&&TS)supLoad(false);sched()},
- open:function(d){V.from=V.tab;V.tab='project';V.pid=d.id;V.ptab=isMob()?'exp':'plan';V.mm=null;V.mmp=null;sched();window.scrollTo(0,0)},
+ open:function(d){V.from=V.tab;V.tab='project';V.pid=d.id;V.ptab=isMob()?'exp':'plan';V.mqp=null;V.mm=null;V.mmp=null;sched();window.scrollTo(0,0)},
  ptab:function(d){V.ptab=d.v;sched()},
  mqmenu:function(){openMqMenu()},
- mqgo:function(d){closeModal();V.ptab=d.v;sched();window.scrollTo(0,0)},
+ mqgo:function(d){closeModal();V.mqp=d.v;V.ptab=d.v;sched();window.scrollTo(0,0)},
+ mqtab:function(d){V.mqp=V.mqp===d.v?null:d.v;if(V.mqp&&V.mqp!=='bud')V.ptab=V.mqp;sched()},
  mmonth:function(d){V.mm=d.v;V.mmp=V.pid;sched()},
  qexp:function(d){openQuick(d.b||'')},
  qsave:function(){qSave()},
@@ -2214,7 +2254,7 @@ var A={
    if(!c.B.length)miss.push('預算項目');
    if(!c.A.length)miss.push('參與對象');
    if(miss.length){toast('送審前請先填寫:'+miss.join('、'));return}
-   if(c.poaOver){toast('計畫書經費超過年度 POA 登記額,請調整預算或到「年度 POA」辦理異動');V.ptab='budget';sched();return}
+   if(c.poaOver){toast('計畫書經費超過年度 POA 登記額,請調整預算或到「年度 POA」辦理異動');V.ptab='budget';V.mqp='budget';sched();return}
    await saveDoc('projects',p.id,{status:'待督導核示',approvals:{}});toast('已送審');
  },
  approve:async function(){
@@ -2227,7 +2267,7 @@ var A={
    var ap=Object.assign({},p.approvals||{});ap[APPROVER[p.status]]={ok:false,note:r.note,at:Date.now()};
    await saveDoc('projects',p.id,{status:'草稿',approvals:ap});toast('已退回');
  },
- closeProj:async function(){var p=S.projects.get(V.pid);var ok=await ask('方案結案後進入成果報告階段,確定嗎?','結案');if(!ok)return;await saveDoc('projects',p.id,{status:'結案待報告'});V.ptab='report';toast('請補齊成效評估後下載成果報告')},
+ closeProj:async function(){var p=S.projects.get(V.pid);var ok=await ask('方案結案後進入成果報告階段,確定嗎?','結案');if(!ok)return;await saveDoc('projects',p.id,{status:'結案待報告'});V.ptab='report';V.mqp='report';toast('請補齊成效評估後下載成果報告')},
  finish:async function(){var p=S.projects.get(V.pid);var ok=await ask('標記為已結案?','已結案');if(!ok)return;await saveDoc('projects',p.id,{status:'已結案'})},
  download:async function(){
    var p=S.projects.get(V.pid),c=calc(p.id);
