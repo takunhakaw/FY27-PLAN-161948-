@@ -694,7 +694,7 @@ var NEXT={'待督導核示':'待總督導核示','待總督導核示':'待區處
 var KINDS=['受助童','受助家長','社區童','社區居民','社工員','志工(實習生)','督導','講師'];
 var MONTHS=['10月','11月','12月','1月','2月','3月','4月','5月','6月','7月','8月','9月'];
 var SDGS=['SDG1 終結貧窮','SDG2 終結飢餓','SDG3 健康與福祉','SDG4 優質教育','SDG5 性別平等','SDG6 淨水與衛生','SDG7 可負擔能源','SDG8 良好工作與經濟成長','SDG9 產業創新與基礎建設','SDG10 減少不平等','SDG11 永續城鄉','SDG12 責任消費與生產','SDG13 氣候行動','SDG14 水下生態','SDG15 陸域生態','SDG16 和平正義','SDG17 夥伴關係'];
-var COLS=['projects','objectives','audiences','budgets','memos','events','attendances','expenditures','carryovers','resources','feedbacks','staff','poaPlans','poaVersions','participants','budgetVersions','advances'];
+var COLS=['projects','objectives','audiences','budgets','memos','events','attendances','expenditures','carryovers','resources','feedbacks','staff','poaPlans','poaVersions','participants','budgetVersions'];
 
 /* ---------- state ---------- */
 var db=null,user=null,downloads=null,uid=null,profName='',canWrite=true,ready=false,failed='';
@@ -1000,7 +1000,6 @@ var ENT={
   validate:function(v,old,pid){for(var i=0;i<v.dates.length;i++){var d=v.dates[i];if(!/^\d{4}-\d{2}-\d{2}$/.test(d))return'日期格式不正確:'+d+'(請用 2026-11-07)';}},
   save:async function(v,old,pid,extra){var s0=S.events.get(extra.srcId);if(!s0)return;var span=s0.endDate&&s0.endDate>s0.date?dayDiff(s0.date,s0.endDate):0;for(var i=0;i<v.dates.length;i++){await saveDoc('events',null,{projectId:pid,date:v.dates[i],endDate:span?addDays(v.dates[i],span):'',start:s0.start||'',end:s0.end||'',name:s0.name,content:s0.content||'',owner:s0.owner||'',note:s0.note||'',place:s0.place||'',plannedPeople:s0.plannedPeople==null?null:s0.plannedPeople,status:'未辦理'})}toast('已複製 '+v.dates.length+' 場')}},
  attendance:{col:'attendances',label:'出席紀錄',fields:function(){return[]}},
- advance:{col:'advances',label:'請款紀錄',fields:function(){return[]}},
  participant:{col:'participants',label:'參與者',fields:function(pid,x){
   var kk={k:'kind',l:'對象',t:'select',opts:KINDS,req:1},hh={k:'hh',l:'家庭/家戶代號(選填)',t:'text',help:'同一家庭填相同代號即可統計戶數;不需要可留空。'},nt={k:'note',l:'備註(請勿填姓名)',t:'text'};
   if(x.id)return[kk,{k:'code',l:'編號/稱呼',t:'text',req:1,help:'個案填個案編號;手足、社區童填去姓氏的名。修改後,已登記的出席紀錄會一併更新。'},hh,nt];
@@ -1245,13 +1244,12 @@ function budgetTab(p,c){
     bs.forEach(function(b){var x=budgetCalc(b);
       rows.push('<tr'+(x.left<0?' class="neg"':'')+'><td>'+esc(catOf(b))+(catOk(b.cat)?'':' <span class="pill wait" title="不在公司規定類別">⚠</span>')+'</td><td class="n">'+esc(b.no)+'</td><td>'+esc(b.item)+'</td><td class="n">'+money(b.price)+'</td><td class="n">'+esc(b.qty)+'</td><td>'+esc(b.unit||'')+'</td><td class="n">'+money(b.total)+'</td><td class="n">'+money(x.spent)+'</td><td class="n">'+money(x.held)+'</td><td class="n bal">'+money(x.left)+'</td><td>'+esc(b.note||'')+'</td><td class="act">'+rowBtns('budget',b.id)+'</td></tr>')})});
   var msum=months.map(function(m){var bs=c.B.filter(function(b){return b.month===m}),t=sum(bs,'total'),sp=SM[m]||0,h=HM[m]||0;var mo=MV.o[m]||0,mi=MV.i[m]||0;return'<tr><td>'+esc(monthFull(p.id,m))+'</td><td class="n">'+money(t)+'</td><td class="n">'+money(sp)+(mi?'<br><small>含轉入 '+money(mi)+'</small>':'')+'</td><td class="n">'+money(h+mo)+(mo?'<br><small>含轉出 '+money(mo)+'</small>':'')+'</td><td class="n">'+money(t-sp-h-mo+mi)+'</td><td class="n">'+(t?pct(sp-mi,t):0)+'%</td></tr>'});
-  return note+catWarn(c.B)+sec('經費預算明細(依月份)',(canWrite?'<button class="btn sm pri" data-a="advOpen">請款單下載</button>':'')+impBtn('budget')+addBtn('budget','新增預算項目'),
+  return note+catWarn(c.B)+sec('經費預算明細(依月份)',impBtn('budget')+addBtn('budget','新增預算項目'),
     '<div style="padding:.6rem .9rem">'+seg+'</div>'+table(['類別','#項次','項目','#單價','#數量','單位','#總價','#已核銷','#保留展延','#餘額','說明',''],rows,
     '<tr><td colspan="6">總計'+(sel==='all'?'':'(全年度)')+'</td><td class="n">'+money(c.total)+'</td><td class="n">'+money(c.spent)+'</td><td class="n">'+money(c.held)+'</td><td class="n">'+money(c.avail)+'</td><td colspan="2"></td></tr>','尚未編列預算,請新增預算項目。')
     +'<p class="hint" style="padding:.5rem .9rem">各單項不足時得核實勻支。核銷與保留金額會自動從項目餘額扣除。</p>',1)
    +(c.B.length?sec('各月份彙總','',table(['月份','#計畫書經費','#已核銷','#保留展延','#餘額','#執行率'],msum,'',''),1):'')
-   +(c.B.length?sec('各類別小計','',table(['類別','#計畫書經費','#已核銷','#保留展延','#餘額','#執行率'],catList(c.B).map(function(k){var bs=c.B.filter(function(b){return catOf(b)===k}),t=sum(bs,'total'),sp=0,h=0;bs.forEach(function(b){var x=budgetCalc(b);sp+=x.spent;h+=x.held});return'<tr><td>'+esc(k)+'</td><td class="n">'+money(t)+'</td><td class="n">'+money(sp)+'</td><td class="n">'+money(h)+'</td><td class="n">'+money(t-sp-h)+'</td><td class="n">'+pct(sp,t)+'%</td></tr>'}),'',''),1):'')
-   +advSec(p);
+   +(c.B.length?sec('各類別小計','',table(['類別','#計畫書經費','#已核銷','#保留展延','#餘額','#執行率'],catList(c.B).map(function(k){var bs=c.B.filter(function(b){return catOf(b)===k}),t=sum(bs,'total'),sp=0,h=0;bs.forEach(function(b){var x=budgetCalc(b);sp+=x.spent;h+=x.held});return'<tr><td>'+esc(k)+'</td><td class="n">'+money(t)+'</td><td class="n">'+money(sp)+'</td><td class="n">'+money(h)+'</td><td class="n">'+money(t-sp-h)+'</td><td class="n">'+pct(sp,t)+'%</td></tr>'}),'',''),1):'');
 }
 function hhList(pid){var m={};kids('participants',pid).forEach(function(x){if(!x.hh)return;m[x.hh]=(m[x.hh]||0)+1});return Object.keys(m).sort().map(function(h){return{code:h,n:m[h]}})}
 function partsSorted(pid){return kids('participants',pid).sort(function(a,b){return(a.order||0)-(b.order||0)||(a.createdAt||0)-(b.createdAt||0)})}
@@ -1791,134 +1789,6 @@ async function poaSave(){
 }
 
 
-/* ---------- 預支款申請單(請款單) ---------- */
-function rocDate(iso){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||'');return m?(Number(m[1])-1911)+'年 '+m[2]+'月 '+m[3]+'日':''}
-function r2(n){return Math.round((Number(n)||0)*100)/100}
-/* 依月份帶入:該月預算項目的剩餘額 + 延至該月使用的保留款 */
-function advLines(pid,month){
-  var out=[],prev={};
-  kids('advances',pid).forEach(function(a){if(a.month!==month)return;(a.lines||[]).forEach(function(l){if(l.bid&&!l.carry&&l.on)prev[l.bid]=(prev[l.bid]||0)+(Number(l.amt)||0)})});
-  by(kids('budgets',pid).filter(function(b){return b.month===month}),'no').forEach(function(b){var left=Math.max(0,r2(budgetCalc(b).left));out.push({k:'b'+b.id,bid:b.id,cat:catOf(b),item:b.item||'',avail:left,amt:left,on:left>0,carry:false,prev:r2(prev[b.id]),note:'本月預算'})});
-  kids('carryovers',pid).filter(function(c){return isActive(c)&&c.toMonth===month}).forEach(function(c){var b=S.budgets.get(c.budgetId),fm=c.fromMonth||(b&&b.month)||'',a=r2(c.amount);out.push({k:'c'+c.id,bid:c.budgetId||'',cat:b?catOf(b):'保留款',item:(b?b.item:fm+'計畫書經費剩餘')+'(保留款)',avail:a,amt:a,on:a>0,carry:true,prev:0,note:fm+'保留,延至'+month+'使用'})});
-  return out}
-function advPurpose(p,lines){
-  var g={},ord=[];
-  lines.forEach(function(l){if(!l.on||!(Number(l.amt)>0))return;if(!g[l.cat]){g[l.cat]=[];ord.push(l.cat)}g[l.cat].push(l)});
-  ord.sort(function(a,b){return catRank(a)-catRank(b)||(a>b?1:-1)});
-  var h='#'+(p.code||'')+(p.name||'');
-  ord.forEach(function(k){var L=g[k],t=0;L.forEach(function(l){t+=Number(l.amt)});h+='\n'+k+'：$'+money(r2(t))+'{'+L.map(function(l){return l.item+r2(l.amt)}).join('、')+'}'});
-  return h}
-function advSum(lines){var t=0;lines.forEach(function(l){if(l.on&&Number(l.amt)>0)t+=Number(l.amt)});return r2(t)}
-function advLinesHtml(){
-  var st=window.__adv;
-  if(!st.lines.length)return'<div class="note info" style="margin:0">'+esc(st.month)+' 沒有編列預算項目,也沒有延至該月使用的保留款;請直接在下方填寫「用途」與「金額」。</div>';
-  return'<div class="tw"><table><thead><tr><th></th><th>類別</th><th>項目</th><th class="n">可請額</th><th class="n">本次請款金額</th><th>說明</th></tr></thead><tbody>'
-   +st.lines.map(function(l,i){return'<tr><td><input type="checkbox" data-advchk="'+i+'" aria-label="帶入此項"'+(l.on?' checked':'')+'></td><td>'+esc(l.cat)+'</td><td>'+esc(l.item)+(l.carry?' <span class="pill wait">保留款</span>':'')+'</td><td class="n">'+money(l.avail)+'</td><td class="n"><input type="number" data-advamt="'+i+'" min="0" step="any" inputmode="decimal" value="'+esc(l.amt)+'" style="width:6.5rem;text-align:right" aria-label="請款金額"></td><td>'+esc(l.note||'')+(l.prev>0?'<br><small style="color:var(--warn)">此月此項已有預支紀錄 $'+money(l.prev)+'</small>':'')+'</td></tr>'}).join('')
-   +'</tbody></table></div><p class="hint" style="margin:.3rem 0 0">勾選的項目會自動組成「用途」並加總金額;「可請額」= 該預算項目尚未核銷、未保留的餘額。</p>'}
-function advFld(id,l,v,o){o=o||{};return'<div class="fld"><label for="'+id+'">'+esc(l)+(o.req?' <i>*</i>':'')+'</label><input type="'+(o.t||'text')+'" id="'+id+'" value="'+esc(v==null?'':v)+'"'+(o.ph?' placeholder="'+esc(o.ph)+'"':'')+(o.t==='number'?' step="any" inputmode="decimal" min="0"':'')+'>'+(o.help?'<div class="help">'+esc(o.help)+'</div>':'')+'</div>'}
-function advOpen(rid){
-  var p=S.projects.get(V.pid);if(!p||!canWrite)return;
-  var old=rid?S.advances.get(rid):null,last=null;
-  S.advances.forEach(function(x){if(x.by===uid&&(!last||(x.at||0)>(last.at||0)))last=x});
-  var b=old||last||{},m=old?old.month:curMonthKey();
-  var st=window.__adv={pid:p.id,rid:old?old.id:'',month:m,lines:old?(old.lines||[]).map(function(l){return Object.assign({},l)}):advLines(p.id,m),pD:!!old,aD:!!old};
-  var purpose=old?old.purpose:advPurpose(p,st.lines),amount=old?old.amount:advSum(st.lines),pay=b.pay||'匯款';
-  document.getElementById('layer').innerHTML='<div class="ov"><div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="mt"><header id="mt">請款單下載(預支款申請單 A5 橫式)'+(old?'・編輯/重印既有紀錄':'')+'</header><div style="padding:1rem 1.1rem;display:grid;gap:.8rem">'
-   +'<div class="note info" style="margin:0">選擇請款對應的月份,系統會帶入該月預算項目的剩餘額與延至該月使用的保留款,組成「用途」與金額。所有欄位都可以修改;按「列印/PDF」或「下載 Word」時,會同時把這筆請款記錄下來備查。</div>'
-   +'<div class="two"><div class="fld"><label for="advM">請款對應月份 <i>*</i></label><select id="advM">'+MONTHS.map(function(x){return'<option'+(x===m?' selected':'')+'>'+x+'</option>'}).join('')+'</select><div class="help">換月份會重新帶入並覆蓋下方用途與金額。</div></div>'+advFld('advDate','申請日期',old?old.date:today(),{t:'date',req:1})+'</div>'
-   +'<div id="advL">'+advLinesHtml()+'</div>'
-   +'<div class="fld"><label for="advPur">用途 <i>*</i></label><textarea id="advPur" style="min-height:8rem">'+esc(purpose)+'</textarea><div class="help">可直接修改文字。<button type="button" class="btn sm" data-a="advRegen">重新依勾選帶入</button></div></div>'
-   +'<div class="two">'+advFld('advAmt','預支金額(NT$)',amount||'',{t:'number',req:1,help:'預設為勾選項目加總,可直接修改。'})+advFld('advFor','外幣(選填)',b===old?old.foreign:'')+'</div>'
-   +'<div class="two">'+advFld('advNeed','需求日期',old?old.need:addDays(today(),7),{t:'date'})+'<div class="fld"><label for="advOff">預算外</label><select id="advOff"><option value="0">否</option><option value="1"'+(old&&old.off?' selected':'')+'>是(附核准文)</option></select></div></div>'
-   +'<div class="two">'+advFld('advDept','申請部門',old?old.dept:(p.center||''))+advFld('advCode','方案代碼',old?old.code:(p.code||''))+'</div>'
-   +advFld('advRaise','勸募名稱或代碼(選填)',old?old.raise:'')
-   +'<div class="two"><div class="fld"><label for="advPay">支付方式</label><select id="advPay">'+['匯款','現金','其他'].map(function(x){return'<option'+(x===pay?' selected':'')+'>'+x+'</option>'}).join('')+'</select></div>'+advFld('advPayee','領款人(現金時填)',b.payee||'')+'</div>'
-   +'<div class="two">'+advFld('advBank','銀行分行別',b.bank||'')+advFld('advAcct','帳號',b.account||'')+'</div>'
-   +advFld('advAcctN','戶名',b.acctName||'')
-   +'<div class="two">'+advFld('advEmp','員工編號',b.emp||'')+advFld('advApp','申請人',b.applicant||myName())+'</div>'
-   +'<div class="rem">帳號等資料會記在請款紀錄中,下次請款自動帶入上次填的內容。</div>'
-   +'<fieldset style="border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem"><legend style="font-size:.85rem">套印設定(紙本表單已印好,只印填寫內容)</legend><div class="two">'+advFld('advOx','水平微調(mm,往右為正)',advOffGet().x,{t:'number',help:'內容偏左就填正數,偏右就填負數(可含小數,例如 -1.5)。'}).replace(' min="0"','')+advFld('advOy','垂直微調(mm,往下為正)',advOffGet().y,{t:'number',help:'內容偏上就填正數,偏下就填負數。'}).replace(' min="0"','')+'</div><div class="rem">請選 A5、橫向、邊界「無」、縮放 100%(不要「縮放至符合頁面」)。第一次建議先用白紙試印,疊在紙本表單上對光確認,再依偏差調整微調值;數值會記住。</div></fieldset>'
-   +'<div class="err" id="adverr" role="alert"></div><div id="advmsg" class="rem" role="status"></div>'
-   +'<div class="foot" style="flex-wrap:wrap"><button type="button" class="btn" data-a="mclose">關閉</button><button type="button" class="btn" data-a="advSaveOnly">只儲存紀錄</button><button type="button" class="btn pri" data-a="advOver">套印列印(只印內容)</button><button type="button" class="btn" data-a="advPrint">列印完整表單 / PDF</button><button type="button" class="btn pri" data-a="advDoc">下載 Word 檔</button></div></div></div></div>';
-  modalOpen=true;modalDirty=false;
-}
-function advSync(){var st=window.__adv,p=st&&S.projects.get(st.pid);if(!p)return;var pu=document.getElementById('advPur'),am=document.getElementById('advAmt');if(pu&&!st.pD)pu.value=advPurpose(p,st.lines);if(am&&!st.aD)am.value=advSum(st.lines)||''}
-function advRead(){
-  var g=function(i){var e=document.getElementById(i);return e?e.value.trim():''},pu=document.getElementById('advPur');
-  return{date:g('advDate'),dept:g('advDept'),purpose:pu?pu.value.replace(/\s+$/,''):'',off:g('advOff')==='1',code:g('advCode'),raise:g('advRaise'),amount:Number(g('advAmt'))||0,foreign:g('advFor'),need:g('advNeed'),pay:g('advPay'),payee:g('advPayee'),bank:g('advBank'),account:g('advAcct'),acctName:g('advAcctN'),emp:g('advEmp'),applicant:g('advApp')}}
-function advCheck(a){if(!a.date)return'請選擇申請日期。';if(!a.purpose)return'請填寫用途。';if(!(a.amount>0))return'請填寫大於 0 的預支金額。';return''}
-async function advSaveRec(a,kind){
-  var st=window.__adv,data=Object.assign({},a,{projectId:st.pid,month:st.month,lines:st.lines.map(function(l){return{k:l.k,bid:l.bid,cat:l.cat,item:l.item,avail:l.avail,amt:l.amt,on:!!l.on,carry:!!l.carry,prev:l.prev||0,note:l.note||''}}),by:uid,byName:myName(),at:Date.now(),lastOut:kind});
-  var id=await saveDoc('advances',st.rid||null,data);st.rid=id;return id}
-function advCss(){return'.advf{width:100%;border-collapse:collapse;table-layout:fixed;font-family:"Noto Serif TC","PMingLiU","MingLiU","Noto Sans TC",serif;font-size:10pt;color:#000}.advf td{border:1.5pt solid #000;padding:3pt 6pt;vertical-align:middle;line-height:1.4;color:#000;background:#fff}.advh{width:100%;border-collapse:collapse;font-family:"Noto Serif TC","PMingLiU","MingLiU","Noto Sans TC",serif;color:#000}.advh td{border:0;padding:1pt 2pt;color:#000;background:#fff}.advin{width:100%;border-collapse:collapse}.advin td{border:0!important;padding:1pt 2pt!important}.advn{font-size:7.5pt;margin-top:4pt;color:#000;font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif}'}
-function advForm(a){
-  var cb=function(on){return on?'☑':'☐'},pu=esc(a.purpose||'').replace(/\n/g,'<br>'),pay=a.pay||'';
-  return'<table class="advh"><tr><td style="width:26%"></td><td style="text-align:center;font-size:18pt;font-weight:700;letter-spacing:2pt">預支款申請單</td><td style="width:26%;text-align:right;font-size:10pt">台灣世界展望會</td></tr></table>'
-   +'<table class="advh" style="margin:3pt 0"><tr><td style="font-size:10.5pt">申請部門：'+esc(a.dept||'')+'</td><td style="text-align:right;font-size:10.5pt">日期： '+esc(rocDate(a.date))+'</td></tr></table>'
-   +'<table class="advf"><colgroup><col style="width:14%"><col style="width:34%"><col style="width:26%"><col style="width:26%"></colgroup>'
-   +'<tr><td style="text-align:center;letter-spacing:2pt">用途</td><td colspan="3" style="font-size:9.5pt;height:60pt;vertical-align:top">'+pu+'</td></tr>'
-   +'<tr><td colspan="2">預算外：'+cb(a.off)+'(附核准文)</td><td>方案代碼：'+esc(a.code||'')+'</td><td>勸募名稱或代碼：'+esc(a.raise||'')+'</td></tr>'
-   +'<tr><td colspan="2"><b>預支金額：NT$</b> '+money(a.amount)+'</td><td>外幣：'+esc(a.foreign||'')+'</td><td>需求日期： '+esc(rocDate(a.need))+'</td></tr>'
-   +'<tr><td style="text-align:center">支付對象<br>方式</td><td colspan="3"><table class="advin"><tr><td style="width:50%">'+cb(pay==='現金')+' 現金　領款人：'+esc(a.payee||'')+'</td><td style="text-align:right">'+cb(pay==='其他')+' 其他　</td></tr><tr><td colspan="2">'+cb(pay==='匯款')+' 匯款　銀行分行別：'+esc(a.bank||'')+'</td></tr><tr><td colspan="2" style="padding-left:34pt!important">帳號：'+esc(a.account||'')+'</td></tr><tr><td colspan="2" style="padding-left:34pt!important">戶名：'+esc(a.acctName||'')+'</td></tr></table></td></tr>'
-   +'<tr><td colspan="2" style="text-align:center">員工編號<br>申　請　人</td><td colspan="2" style="text-align:center">單位主管核准</td></tr>'
-   +'<tr><td colspan="2" style="text-align:center;height:30pt">'+esc((a.emp||'')+' '+(a.applicant||''))+'</td><td colspan="2"></td></tr></table>'
-   +'<div class="advn">關於本會如何依個人資料保護法蒐集、處理及利用您的個人資料,請見官方網站隱私權政策</div>'}
-function advDocHtml(a){return'<!doctype html><html lang="zh-Hant" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><meta name="ProgId" content="Word.Document"><title>預支款申請單</title><style>@page Section1{size:21.0cm 14.8cm;mso-page-orientation:landscape;margin:1.0cm 1.2cm 1.0cm 1.2cm}div.Section1{page:Section1}body{font-family:"Noto Serif TC","PMingLiU",serif}'+advCss()+'</style></head><body><div class="Section1">'+advForm(a)+'</div></body></html>'}
-/* 套印:座標取自範例 PDF(1300 px 寬 = 210 mm),單位 px,y 為該行文字中心 */
-var ADV_K=210/1300;
-var ADV_OFF_KEY='fangan_adv_off';
-function advOffGet(){try{var o=JSON.parse(localStorage.getItem(ADV_OFF_KEY)||'null');if(o)return{x:Number(o.x)||0,y:Number(o.y)||0}}catch(e){}return{x:0,y:0}}
-function advOverlay(a,off){
-  off=off||{x:0,y:0};var k=ADV_K;
-  var T=function(x,y,txt,o){o=o||{};return'<div style="position:absolute;left:'+(x*k+off.x).toFixed(2)+'mm;top:'+(y*k-2+off.y).toFixed(2)+'mm;line-height:4mm;height:4mm;white-space:nowrap;font-size:'+(o.fs||10)+'pt;'+(o.w?'width:'+(o.w*k).toFixed(1)+'mm;white-space:normal;height:auto;':'')+(o.b?'font-weight:700;':'')+'">'+esc(txt)+'</div>'};
-  var C=function(x,y){return'<div style="position:absolute;left:'+(x*k-2.6+off.x).toFixed(2)+'mm;top:'+(y*k-2.6+off.y).toFixed(2)+'mm;width:5.2mm;height:5.2mm;line-height:5.2mm;text-align:center;font-size:13pt;font-weight:700">✔</div>'};
-  var TC=function(cx,y,txt,w,o){w=w||60;o=o||{};return'<div style="position:absolute;left:'+((cx-w/2)*k+off.x).toFixed(2)+'mm;top:'+(y*k-2+off.y).toFixed(2)+'mm;width:'+(w*k).toFixed(1)+'mm;text-align:center;line-height:4mm;height:4mm;white-space:nowrap;font-size:'+(o.fs||10)+'pt">'+esc(txt)+'</div>'};
-  var DP=function(iso){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||'');return m?[String(Number(m[1])-1911),m[2],m[3]]:['','','']};
-  var pay=a.pay||'',h='';
-  /* 用途:依字數自動縮小字級,盡量排進欄位(寬約 146 mm、高約 15.5 mm) */
-  var lines=String(a.purpose||'').split('\n'),f=10,lh=4,chosen=null;
-  [10,9,8,7,6.5,6].forEach(function(fs){if(chosen)return;var cw=fs*0.3528,cpl=Math.max(1,Math.floor(146/cw)),n=0;lines.forEach(function(L){n+=Math.max(1,Math.ceil(L.length/cpl))});var l=cw*1.15;if(n*l<=16.5){chosen={fs:fs,lh:l}}});
-  if(!chosen)chosen={fs:6,lh:6*0.3528*1.15};
-  h+='<div style="position:absolute;left:'+(278*k+off.x).toFixed(2)+'mm;top:'+(165*k+off.y).toFixed(2)+'mm;width:'+(890*k).toFixed(1)+'mm;font-size:'+chosen.fs+'pt;line-height:'+chosen.lh.toFixed(2)+'mm;white-space:pre-wrap;overflow-wrap:anywhere">'+esc(a.purpose||'')+'</div>';
-  var d1=DP(a.date),d2=DP(a.need);
-  h+=T(236,145,a.dept||'')+TC(1004,145,d1[0],52)+TC(1065,145,d1[1],40)+TC(1128,145,d1[2],40);
-  if(a.off)h+=C(253,310);
-  h+=T(652,310,a.code||'')+T(998,310,a.raise||'',{fs:9});
-  h+=T(286,386,money(a.amount),{b:1,fs:11})+T(614,386,a.foreign||'')+TC(1000,386,d2[0],52)+TC(1060,386,d2[1],40)+TC(1125,386,d2[2],40);
-  if(pay==='現金')h+=C(288,442);if(pay==='其他')h+=C(845,442);if(pay==='匯款')h+=C(288,477);
-  h+=T(544,442,a.payee||'')+T(544,477,a.bank||'')+T(544,512,a.account||'')+T(544,546,a.acctName||'');
-  h+=TC(262,675,((a.emp||'')+' '+(a.applicant||'')).trim(),270);
-  return'<div style="position:relative;width:210mm;height:148mm;overflow:hidden;font-family:\'Noto Sans TC\',\'Microsoft JhengHei\',\'PMingLiU\',sans-serif;color:#000;background:transparent">'+h+'</div>'}
-function advPrintClean(){document.documentElement.classList.remove('advp');['advprint','advprintst'].forEach(function(i){var e=document.getElementById(i);if(e)e.remove()})}
-function advPrintForm(a,over){
-  advPrintClean();
-  var d=document.createElement('div');d.id='advprint';d.innerHTML=over?advOverlay(a,advOffGet()):advForm(a);
-  var s=document.createElement('style');s.id='advprintst';s.textContent='#advprint{display:none}@media print{@page{size:A5 landscape;margin:'+(over?'0':'8mm')+'}html.advp body>*:not(#advprint){display:none!important}html.advp #advprint{display:block!important;position:static;background:'+(over?'transparent':'#fff')+'}html.advp #advprint,html.advp #advprint *{visibility:visible!important}}'+advCss();
-  document.body.appendChild(d);document.head.appendChild(s);document.documentElement.classList.add('advp');
-  window.addEventListener('afterprint',advPrintClean,{once:true});setTimeout(advPrintClean,90000);
-  setTimeout(function(){window.print()},80)}
-function advShort(a){var L=String(a.purpose||'').split('\n');if(L.length>1&&L[0].charAt(0)==='#')L=L.slice(1);var t=L.join(';');return t.length>70?t.slice(0,70)+'…':t}
-function advSec(p){
-  var L=by(kids('advances',p.id),'date').reverse(),tot=sum(L,'amount');
-  var rows=L.map(function(a){return'<tr><td>'+esc((a.date||'').replace(/-/g,'/'))+'</td><td>'+esc(a.month||'')+'</td><td>'+esc((a.need||'').replace(/-/g,'/'))+'</td><td class="rest">'+esc(advShort(a))+'</td><td class="n">'+money(a.amount)+'</td><td>'+esc(a.pay||'')+'</td><td>'+esc(a.lastOut||'')+'<br><small class="rem">'+esc(a.byName||'')+(a.at?' '+fdate(a.at):'')+'</small></td><td class="act">'+(canWrite?'<button class="btn sm" data-a="advEdit" data-id="'+a.id+'">檢視/重印</button> <button class="btn sm bad" data-a="del" data-e="advance" data-id="'+a.id+'">刪除</button>':'')+'</td></tr>'});
-  return sec('請款紀錄(備查)',canWrite?'<button class="btn sm pri" data-a="advOpen">請款單下載</button>':'',table(['申請日期','對應月份','需求日期','用途摘要','#金額','方式','最後產出',''],rows,'<tr><td colspan="4">請款合計(共 '+L.length+' 筆)</td><td class="n">'+money(tot)+'</td><td colspan="3"></td></tr>','尚無請款紀錄。按「請款單下載」產生請款單後,會自動記錄在這裡備查。'),1)}
-document.addEventListener('change',function(e){var t=e.target,st=window.__adv;if(!t||!st||!document.getElementById('advPur'))return;var d=t.dataset||{};
-  if(d.advchk!==undefined){var l=st.lines[Number(d.advchk)];if(l){l.on=t.checked;advSync()}}
-  else if(d.advamt!==undefined){var l2=st.lines[Number(d.advamt)];if(l2){l2.amt=r2(t.value);advSync()}}
-  else if(t.id==='advM'){st.month=t.value;st.lines=advLines(st.pid,st.month);st.pD=false;st.aD=false;document.getElementById('advL').innerHTML=advLinesHtml();advSync()}});
-document.addEventListener('input',function(e){var t=e.target,st=window.__adv;if(!t||!st||!document.getElementById('advPur'))return;
-  if(t.id==='advPur')st.pD=true;else if(t.id==='advAmt')st.aD=true;else if(t.dataset&&t.dataset.advamt!==undefined){var l=st.lines[Number(t.dataset.advamt)];if(l){l.amt=r2(t.value);advSync()}}});
-async function advGo(kind){
-  var err=document.getElementById('adverr'),msg=document.getElementById('advmsg');err.textContent='';
-  var a=advRead(),m=advCheck(a);if(m){err.textContent=m;return}
-  try{await advSaveRec(a,kind)}catch(e){return}
-  msg.textContent='✔ 已記錄這筆請款('+kind+'),可在預算頁「請款紀錄」查看。';
-  if(kind==='套印'){var ox=Number((document.getElementById('advOx')||{}).value)||0,oy=Number((document.getElementById('advOy')||{}).value)||0;try{localStorage.setItem(ADV_OFF_KEY,JSON.stringify({x:ox,y:oy}))}catch(e){}advPrintForm(a,true)}
-  else if(kind==='列印/PDF')advPrintForm(a);
-  else if(kind==='Word 檔'){try{await downloads.save({filename:'預支款申請單_'+(a.code||'方案')+'_'+a.date.replace(/-/g,'')+'.doc',data:advDocHtml(a)});toast('已儲存 Word 檔(.doc),用 Word 開啟,若跳出格式提示請選「是」')}catch(e){if(e&&e.code!=='declined')toast('下載失敗')}}
-  else toast('已儲存請款紀錄');
-  sched()}
-
 /* ---------- CSV import ---------- */
 var IMP={"project": {"label": "方案(計畫書基本資料)", "file": "匯入範本_方案.csv", "cols": [{"h": "事工編碼", "k": "code", "t": "text", "req": 1}, {"h": "方案名稱", "k": "name", "t": "text", "req": 1}, {"h": "執行中心", "k": "center", "t": "text", "req": 1}, {"h": "年度", "k": "fy", "t": "sel", "opts": "FYS", "def": "FY27"}, {"h": "計畫月份", "k": "month", "t": "sel", "req": 1, "opts": "MONTHS"}, {"h": "依據SDGs", "k": "sdgs", "t": "sdg"}, {"h": "CWBO", "k": "cwbo", "t": "list"}, {"h": "服務策略", "k": "strategy", "t": "list"}, {"h": "需求評估", "k": "need", "t": "text"}, {"h": "執行起日", "k": "startDate", "t": "date"}, {"h": "執行迄日", "k": "endDate", "t": "date"}, {"h": "執行地點", "k": "place", "t": "text"}, {"h": "執行方式及內容", "k": "method", "t": "text"}, {"h": "POA預算(備用)", "k": "poa", "t": "num"}], "sample": [["FY27-001", "週末籃球營", "OO中心", "FY27", "11月", "SDG3、SDG4", "兒童享有健康的生活", "運動與品格教育", "社區兒童缺乏安全的運動空間", "2026-11-01", "2026-11-30", "中心活動室", "分組教學、技巧練習與分組賽", "12000"]], "tips": "多個 SDGs、CWBO、服務策略請用「、」分隔。SDGs 可寫 SDG4、4 或完整名稱。年度為 10 月至隔年 9 月(FY26 = 2025/10–2026/09;FY27 = 2026/10–2027/09)。計畫月份是方案「開始執行」的月份;有填執行起日時,以起日的月份為準,且起日必須落在該年度內。"}, "objective": {"label": "活動目標與評估方法", "file": "匯入範本_活動目標.csv", "cols": [{"h": "序號", "k": "no", "t": "num"}, {"h": "活動目標", "k": "text", "t": "text", "req": 1}, {"h": "評估指標", "k": "indicator", "t": "text"}, {"h": "評估工具", "k": "tool", "t": "text"}, {"h": "頻率", "k": "freq", "t": "text"}], "sample": [["1", "在一個月內讓 80% 的成員學會三步上籃", "達成率 80%", "技巧檢核表", "每次活動"]], "tips": "序號留空會依順序自動編號。"}, "audience": {"label": "參與對象(預期人數)", "file": "匯入範本_參與對象.csv", "cols": [{"h": "對象", "k": "kind", "t": "sel", "req": 1, "opts": "KINDS"}, {"h": "預期人數", "k": "expPeople", "t": "num"}, {"h": "預期人次", "k": "expTimes", "t": "num"}], "sample": [["受助童", "20", "60"], ["社工員", "2", "6"]], "tips": "對象必須是:受助童、受助家長、社區童、社區居民、社工員、志工(實習生)、督導、講師。預期人次留空時以預期人數計。"}, "budget": {"label": "經費預算明細", "file": "匯入範本_預算.csv", "cols": [{"h": "經費類別", "k": "cat", "t": "text"}, {"h": "月份", "k": "month", "t": "sel", "req": 1, "opts": "MONTHS"}, {"h": "項次", "k": "no", "t": "num"}, {"h": "項目", "k": "item", "t": "text", "req": 1}, {"h": "單價", "k": "price", "t": "num", "req": 1}, {"h": "數量", "k": "qty", "t": "num", "req": 1}, {"h": "單位", "k": "unit", "t": "text"}, {"h": "說明", "k": "note", "t": "text"}], "sample": [["講座/授課鐘點費", "11月", "1", "講師費", "1000", "6", "小時", ""], ["膳食費", "11月", "2", "點心與飲水", "60", "100", "份", ""]], "tips": "總價由單價 × 數量自動計算。經費類別請與機構科目名稱一致,成果報告會依類別分組。月份可寫 11月 或 11。"}, "event": {"label": "活動場次", "file": "匯入範本_活動場次.csv", "cols": [{"h": "日期", "k": "date", "t": "date", "req": 1}, {"h": "結束日期", "k": "endDate", "t": "date"}, {"h": "開始時間", "k": "start", "t": "time"}, {"h": "結束時間", "k": "end", "t": "time"}, {"h": "活動名稱", "k": "name", "t": "text", "req": 1}, {"h": "預計人數", "k": "plannedPeople", "t": "num"}, {"h": "活動內容", "k": "content", "t": "text"}, {"h": "負責人員", "k": "owner", "t": "text"}, {"h": "地點", "k": "place", "t": "text"}, {"h": "備註", "k": "note", "t": "text"}], "sample": [["2026-11-07", "2026-11-09", "14:00", "16:00", "基礎運球與三步上籃", "20", "暖身、運球、三步上籃分組練習", "王小明", "中心活動室", ""], ["2026-11-14", "", "14:00", "16:00", "分組賽", "20", "分組對抗賽", "王小明", "中心活動室", ""]], "tips": "日期格式 2026-11-07。時間格式 14:00。「結束日期」選填,多日活動(營隊)才填。"}, "participant": {"label": "參與者名冊", "file": "匯入範本_參與者名冊.csv", "cols": [{"h": "對象", "k": "kind", "t": "sel", "req": 1, "opts": "KINDS"}, {"h": "編號", "k": "code", "t": "text", "req": 1}, {"h": "家庭代號", "k": "hh", "t": "text"}, {"h": "備註", "k": "note", "t": "text"}], "sample": [["受助童", "C10231", "F01", ""], ["受助童", "小明", "F01", "C10231 的手足"], ["社區童", "小華", "", ""]], "tips": "每一列一位參與者。「編號」:個案填個案編號;手足、社區童填去姓氏的名。「家庭代號」選填,同一家庭填相同代號可統計戶數。請勿填完整姓名。"}};
 var FYS=FYLIST;IMP.project.cols.forEach(function(c){if(c.k==='fy')c['def']=curFY()});
@@ -2439,7 +2309,7 @@ var A={
  delProject:async function(){
    var p=S.projects.get(V.pid);var ok=await ask('刪除方案「'+p.name+'」及底下所有預算、場次、核銷等資料?無法復原。','全部刪除');if(!ok)return;
    try{
-     var jobs=[];['objectives','audiences','budgets','memos','events','attendances','expenditures','carryovers','resources','feedbacks','budgetVersions','advances'].forEach(function(c){kids(c,p.id).forEach(function(x){jobs.push(delDoc(c,x.id))})});
+     var jobs=[];['objectives','audiences','budgets','memos','events','attendances','expenditures','carryovers','resources','feedbacks','budgetVersions'].forEach(function(c){kids(c,p.id).forEach(function(x){jobs.push(delDoc(c,x.id))})});
      await Promise.all(jobs);await delDoc('projects',p.id);V.tab='home';V.pid=null;toast('方案已刪除');sched();
    }catch(e){}
  },
@@ -3045,7 +2915,7 @@ function poaHandoverSave(){
   var itemsN=(v.items||[]).map(function(x){return Object.assign({},x,{slotIdx:(x.slotIdx||[]).slice()})});if(ctx.item>=0&&itemsN[ctx.item]&&itemsN[ctx.item].slotIdx.indexOf(si)<0)itemsN[ctx.item].slotIdx.push(si);
   saveDoc('poaVersions',v.id,Object.assign({slots:slots,binds:binds,more:more,prior:prior,alloc:alloc},v.items?{items:itemsN}:{})).then(function(){closeModal();toast(cur?'已交接,原承辦姓名已保留':'已派發');sched()}).catch(function(){b.disabled=false});
 }
-Object.assign(A,{advOpen:function(d){advOpen(d.id)},advEdit:function(d){advOpen(d.id)},advRegen:function(){var st=window.__adv;if(!st)return;st.pD=false;st.aD=false;advSync()},advSaveOnly:function(){advGo('僅記錄')},advPrint:function(){advGo('列印/PDF')},advOver:function(){advGo('套印')},advDoc:function(){advGo('Word 檔')},poaHandover:function(d){poaHandoverOpen(d.code,d.slot,d.item)},poaHoSave:function(){poaHandoverSave()},
+Object.assign(A,{poaHandover:function(d){poaHandoverOpen(d.code,d.slot,d.item)},poaHoSave:function(){poaHandoverSave()},
   poaAddSlot:function(d,t){var td=t.closest('td'),box=td.querySelector('.slots'),n=box.querySelectorAll('.slot').length;if(n>=6){toast('同一事工編碼最多 6 個方案');return}box.insertAdjacentHTML('beforeend',poaSlotHtml({chain:[],bind:''},n))},
   poaDelSlot:function(d,t){var sl=t.closest('.slot'),box=sl.parentElement,ch=[];try{ch=JSON.parse(sl.dataset.chain||'[]')}catch(x){}
     if(ch.length>1){toast('這個方案已有交接紀錄,不能移除');return}
