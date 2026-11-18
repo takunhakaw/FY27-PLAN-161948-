@@ -326,7 +326,10 @@ button.mq-tile:active{background:var(--accent-soft)}
 
 .rdot{display:inline-block;width:.6rem;height:.6rem;border-radius:50%;background:#e03131;margin-right:.4rem;vertical-align:middle;flex:none}
 .lgnote{max-height:none}
-.lgnote>.nh{font-weight:700;color:var(--accent);font-size:.9rem;display:flex;align-items:center}
+.lgnote>.nh{font-weight:700;color:var(--accent);font-size:.9rem;display:flex;align-items:center;cursor:pointer;min-height:30px}
+.lgnote>.nh::after{content:"▴";margin-left:auto;color:var(--muted)}
+.lgnote.fold>.nh::after{content:"▾"}
+.lgnote.fold>.nl,.lgnote.fold>.nlock{display:none}
 .lgnote .nl{display:grid;gap:.35rem;max-height:14rem;overflow-y:auto}
 .lgnote details.nd{background:var(--surface);border:1px solid var(--line);border-radius:6px}
 .lgnote details.nd>summary{list-style:none;cursor:pointer;padding:.45rem .6rem;display:flex;align-items:center;gap:.3rem;font-size:.88rem;min-height:38px}
@@ -357,9 +360,7 @@ var CFG={GAS_URL:'https://script.google.com/macros/s/AKfycbzQkkhyyrB_0whPdsYDr1P
 /* ★ 登入畫面公告:管理員要發公告時,新增/修改下面的項目即可(最新的放最前面)。
    date:公告日期;title:標題(可省略);text:內文(可換行 \n);until:到這一天(含)後自動不顯示(可省略)。
    清單是空的([])時,登入畫面不會出現公告區塊。 */
-var NOTICES=[
-  {date:'2026-11-12',title:'系統公告',text:'成果報告可由督導於「督導系統 → 成果報告下載」單份或批量下載。\n'}
-];
+var NOTICES=[];
 /* ★ 登入畫面右側「今日小驚喜」:管理員要更新時,新增/修改下面的項目即可(每次開啟登入畫面會隨機挑一則,盡量不與上次重複)。
    title:標題(可省略);text:內文(可換行 \n);img:照片網址(可填 GitHub 倉庫內的相對路徑,例如 'fun/otter.jpg',或 https:// 完整網址;可省略);
    emoji:沒有照片時顯示的大圖示;credit:照片來源/說明(可省略);until:到這一天(含)後自動不顯示(可省略)。
@@ -419,18 +420,25 @@ function noticeHtml(){
 /* 套用公告清單到登入畫面:綁定展開事件、更新紅點、控制登入鈕 */
 function noticeWire(o,L,lockFn){
   var box=o.querySelector('#lgnotes');if(!box)return;
-  if(!L.length){box.outerHTML='<div id="lgnotes"></div>';lockFn(0);return}
+  if(!L.length){box.outerHTML='<div id="lgnotes"></div>';o.__nun=0;lockFn(0);return}
+  var wasFold=box.classList.contains('fold');
   box.outerHTML='<div class="lgnote" id="lgnotes" role="region" aria-label="公告">'+noticeHtmlCloud(L)+'</div>';
   box=o.querySelector('#lgnotes');
+  function fold(f){box.classList.toggle('fold',!!f)}
   function refresh(){
-    var un=noticeUnread(L),m=seenGet();
+    var un=noticeUnread(L),m=seenGet();o.__nun=un.length;
     box.querySelectorAll('details.nd').forEach(function(d){var u=!m[d.dataset.nid]||m[d.dataset.nid]<Number(d.dataset.nt);var dot=d.querySelector('summary .rdot');if(!u&&dot)dot.remove()});
-    var h=box.querySelector('.nh');h.innerHTML=(un.length?'<span class="rdot" aria-label="有未讀公告"></span>':'')+'📢 公告'+(un.length?'('+un.length+' 則未讀)':'');
+    var h=box.querySelector('.nh');h.innerHTML=(un.length?'<span class="rdot" aria-label="有未讀公告"></span>':'')+'📢 公告'+(un.length?'('+un.length+' 則未讀)':'(已讀)');
     var lk=box.querySelector('#lgnl');if(lk)lk.textContent=un.length?'請先展開並閱讀每一則未讀公告,登入鈕才會啟用。':'';
     lockFn(un.length);
   }
-  box.addEventListener('toggle',function(e){var d=e.target;if(d&&d.dataset&&d.dataset.nid&&d.open){seenSet(d.dataset.nid,Number(d.dataset.nt)||1);refresh()}},true);
+  box.addEventListener('toggle',function(e){var d=e.target;if(d&&d.dataset&&d.dataset.nid&&d.open){
+    box.querySelectorAll('details.nd[open]').forEach(function(x){if(x!==d)x.open=false});
+    seenSet(d.dataset.nid,Number(d.dataset.nt)||1);refresh()}},true);
+  box.querySelector('.nh').addEventListener('click',function(){fold(!box.classList.contains('fold'))});
+  if(!o.__nfocus){o.__nfocus=1;o.addEventListener('focusin',function(e){var b=o.querySelector('#lgnotes');if(b&&o.__nun===0&&(e.target.id==='lgu'||e.target.id==='lgp'))b.classList.add('fold')})}
   refresh();
+  if(wasFold||o.__nun===0)fold(true);
 }
 var VER='雲端版 v4.0',SKEY='fangan_sess',LKEY='fangan_lastuid',MAIL='takun_hakaw@worldvision.org.tw';
 window.__STANDALONE=true;
